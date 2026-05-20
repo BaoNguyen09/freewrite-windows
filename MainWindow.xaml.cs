@@ -767,7 +767,7 @@ public partial class MainWindow : Window
         var menu = new ContextMenu();
         menu.Items.Add(ChatMenuItem("Open Folder", () =>
         {
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = _store.RootDirectory, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"\"{_store.RootDirectory}\"", UseShellExecute = true });
         }));
         menu.Items.Add(ChatMenuItem("Choose Folder", ChooseFolder));
         menu.PlacementTarget = Sidebar;

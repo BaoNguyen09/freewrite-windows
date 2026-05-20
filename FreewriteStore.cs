@@ -134,12 +134,17 @@ public sealed class FreewriteStore
         Directory.CreateDirectory(videoDirectory);
 
         var destination = ManagedVideoPath(videoFilename);
-        if (File.Exists(destination))
+        var sourceFullPath = Path.GetFullPath(sourceVideoPath);
+        var destinationFullPath = Path.GetFullPath(destination);
+        if (!sourceFullPath.Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase) && File.Exists(destination))
         {
             File.Delete(destination);
         }
 
-        File.Copy(sourceVideoPath, destination);
+        if (!sourceFullPath.Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(sourceVideoPath, destination);
+        }
         SaveNewEntry(entry, "Video Entry");
 
         var cleanedTranscript = transcript?.Trim();
