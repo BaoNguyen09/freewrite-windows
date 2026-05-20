@@ -7,10 +7,12 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Windows.Media.Capture;
 using Windows.Storage;
+using WinRT.Interop;
 
 namespace FreewriteWindows;
 
@@ -581,6 +583,8 @@ public partial class MainWindow : Window
         try
         {
             var captureUi = new CameraCaptureUI();
+            var windowHandle = new WindowInteropHelper(this).Handle;
+            InitializeWithWindow.Initialize(captureUi, windowHandle);
             captureUi.VideoSettings.Format = CameraCaptureUIVideoFormat.Mp4;
             captureUi.VideoSettings.AllowTrimming = true;
             var capturedFile = await captureUi.CaptureFileAsync(CameraCaptureUIMode.Video);
