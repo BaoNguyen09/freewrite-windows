@@ -9,6 +9,8 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using Windows.Media.Capture;
+using Windows.Storage;
 
 namespace FreewriteWindows;
 
@@ -565,6 +567,43 @@ public partial class MainWindow : Window
 
     private void Video_Click(object sender, RoutedEventArgs e)
     {
+        var menu = new ContextMenu();
+        var recordItem = new MenuItem { Header = "Record Video" };
+        recordItem.Click += async (_, _) => await RecordVideoWithWindowsCameraAsync();
+        menu.Items.Add(recordItem);
+        menu.Items.Add(ChatMenuItem("Choose Video", ChooseVideoFile));
+        menu.PlacementTarget = VideoButton;
+        menu.IsOpen = true;
+    }
+
+    private async Task RecordVideoWithWindowsCameraAsync()
+    {
+        try
+        {
+            var captureUi = new CameraCaptureUI();
+            captureUi.VideoSettings.Format = CameraCaptureUIVideoFormat.Mp4;
+            captureUi.VideoSettings.AllowTrimming = true;
+            var capturedFile = await captureUi.CaptureFileAsync(CameraCaptureUIMode.Video);
+            if (capturedFile is null)
+            {
+                return;
+            }
+
+            var tempFolder = await StorageFolder.GetFolderFromPathAsync(Path.GetTempPath());
+            var tempFile = await capturedFile.CopyAsync(
+                tempFolder,
+                $"{Guid.NewGuid()}{Path.GetExtension(capturedFile.Name)}",
+                NameCollisionOption.ReplaceExisting);
+            ImportVideoFromPath(tempFile.Path);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Windows camera capture failed. Use Choose Video instead.\n\n{ex.Message}", "Freewrite");
+        }
+    }
+
+    private void ChooseVideoFile()
+    {
         var dialog = new OpenFileDialog
         {
             Title = "Choose a video entry",
@@ -576,12 +615,17 @@ public partial class MainWindow : Window
             return;
         }
 
-        var transcriptCandidate = Path.ChangeExtension(dialog.FileName, ".md");
+        ImportVideoFromPath(dialog.FileName);
+    }
+
+    private void ImportVideoFromPath(string videoPath)
+    {
+        var transcriptCandidate = Path.ChangeExtension(videoPath, ".md");
         var transcript = File.Exists(transcriptCandidate) ? File.ReadAllText(transcriptCandidate) : null;
         var replacement = _selectedEntry?.EntryType == EntryType.Text && string.IsNullOrWhiteSpace(EditorTextBox.Text)
             ? _selectedEntry
             : null;
-        var entry = _store.SaveImportedVideo(dialog.FileName, transcript, replacement);
+        var entry = _store.SaveImportedVideo(videoPath, transcript, replacement);
         if (replacement is not null)
         {
             var index = _entries.FindIndex(item => item.Id == replacement.Id);

@@ -25,24 +25,28 @@ Source inspected: `farzaa/freewrite` on `main`, commit `c21d71c` (`Fix TextEdito
 - Light/dark theme preference.
 - ChatGPT/Claude/copy-prompt flow using the same prompt text from the Swift source.
 - Video playback through WPF `MediaElement`, including loop-on-end.
-- Video import as the Windows alternative to the macOS recorder path.
+- Video creation through the Windows built-in camera UI, plus manual video import as fallback.
 
 ## Not Fully Identical
 
-### Video Recording
+### Video Recording UI
 
 macOS Freewrite records video in-app through `AVFoundation` and requires camera, microphone, and Apple Speech permissions before showing an immersive recorder.
 
-The Windows port currently imports existing video files into the same Freewrite storage layout instead of recording them in-app. This keeps the data format compatible with the current macOS Freewrite layout, but it is not identical UX.
+The Windows port records through `CameraCaptureUI`, which launches the built-in Windows camera capture UI and then imports the resulting file into the same Freewrite storage layout. This is a real Windows-native recording path, but it is not identical UX because the preview/recording controls are hosted by Windows instead of inside Freewrite's edge-to-edge overlay.
 
-Windows-native path to reach parity:
+Windows-native path to reach exact in-app parity:
 
 - Use Windows `MediaCapture` for camera and microphone capture.
 - Use Windows speech recognition APIs for continuous dictation/transcript capture.
 - Save into the existing `.mov`-named per-entry folder layout.
 - Add a WPF camera preview host.
 
-This is not impossible in first principles; it is an implementation gap, not an OS impossibility. The app reports this honestly by using "Choose a video entry" behavior instead of pretending to record.
+This is not impossible in first principles; it is an implementation gap, not an OS impossibility.
+
+### Speech Transcription
+
+The macOS app transcribes during recording with Apple's Speech framework and saves `transcript.md`. The Windows app preserves and reads `transcript.md` when present, and imports a sidecar transcript if a same-named `.md` exists next to an imported video. It does not yet generate a live transcript during Windows camera capture.
 
 ### Video Codecs
 
@@ -63,7 +67,7 @@ dotnet publish -c Release -r win-x64 --self-contained false
 Output:
 
 ```text
-bin\Release\net9.0-windows\win-x64\publish\FreewriteWindows.exe
+bin\Release\net9.0-windows10.0.19041.0\win-x64\publish\FreewriteWindows.exe
 ```
 
 This binary requires the .NET 9 Windows Desktop Runtime, which is present on this machine.
