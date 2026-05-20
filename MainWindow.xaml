@@ -35,6 +35,38 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="DialogButton" TargetType="Button" BasedOn="{StaticResource PlainButton}">
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="MinWidth" Value="76" />
+            <Setter Property="Background" Value="#EEEEEE" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ScrollBar}">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="MinWidth" Value="6" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Opacity" Value="0.65" />
+        </Style>
+
+        <Style TargetType="{x:Type Thumb}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="#777777" CornerRadius="3" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid x:Name="RootGrid" Background="White">
@@ -62,6 +94,7 @@
 
                 <Grid x:Name="EditorShell"
                       HorizontalAlignment="Center"
+                      Width="650"
                       MaxWidth="650"
                       Margin="0,40,0,0">
                     <TextBox x:Name="EditorTextBox"
@@ -132,10 +165,12 @@
                     </ScrollViewer>
 
                     <ScrollViewer Grid.Column="1"
+                                  HorizontalAlignment="Right"
                                   HorizontalScrollBarVisibility="Hidden"
                                   VerticalScrollBarVisibility="Disabled"
                                   Padding="8,0,18,0">
                         <StackPanel x:Name="BottomActionItems"
+                                    HorizontalAlignment="Right"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Center">
                             <Button x:Name="TimerButton" Content="15:00" Style="{StaticResource PlainButton}" Click="Timer_Click" MouseDoubleClick="Timer_DoubleClick" MouseWheel="Timer_MouseWheel" />
@@ -152,7 +187,23 @@
                             <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
                             <Button x:Name="ThemeButton" Content="Dark Mode" Style="{StaticResource PlainButton}" Click="Theme_Click" />
                             <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                            <Button x:Name="HistoryButton" Content="History" Style="{StaticResource PlainButton}" Click="History_Click" />
+                            <Button x:Name="HistoryButton" Style="{StaticResource PlainButton}" Click="History_Click" ToolTip="History">
+                                <Viewbox Width="13" Height="13">
+                                    <Canvas Width="16" Height="16">
+                                        <Ellipse Width="13"
+                                                 Height="13"
+                                                 Canvas.Left="1.5"
+                                                 Canvas.Top="1.5"
+                                                 Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                 StrokeThickness="1.4" />
+                                        <Path Data="M8,4.5 L8,8 L10.8,9.8"
+                                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                              StrokeThickness="1.4"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round" />
+                                    </Canvas>
+                                </Viewbox>
+                            </Button>
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
@@ -225,7 +276,8 @@
                     Padding="22,20"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Background="White">
+                    Background="White"
+                    CornerRadius="8">
                 <StackPanel>
                     <TextBlock x:Name="DeleteDialogTitle"
                                Text="Delete this entry?"
@@ -241,15 +293,46 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="CancelDeleteButton"
                                 Content="Cancel"
-                                Style="{StaticResource PlainButton}"
+                                Style="{StaticResource DialogButton}"
                                 Margin="0,0,18,0"
                                 Click="CancelDelete_Click" />
                         <Button x:Name="ConfirmDeleteButton"
                                 Content="Delete"
-                                Style="{StaticResource PlainButton}"
+                                Style="{StaticResource DialogButton}"
                                 FontWeight="SemiBold"
                                 Click="ConfirmDelete_Click" />
                     </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="RecordOverlay"
+              Grid.ColumnSpan="2"
+              Background="#66000000"
+              Visibility="Collapsed">
+            <Border x:Name="RecordDialog"
+                    Width="300"
+                    Padding="22,20"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="White"
+                    CornerRadius="8">
+                <StackPanel>
+                    <TextBlock x:Name="RecordDialogTitle"
+                               Text="Recording video"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="#222222" />
+                    <TextBlock x:Name="RecordElapsedText"
+                               Margin="0,8,0,18"
+                               Text="00:00"
+                               FontSize="24"
+                               Foreground="#777777" />
+                    <Button x:Name="StopRecordingButton"
+                            Content="Stop"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource DialogButton}"
+                            Click="StopRecording_Click" />
                 </StackPanel>
             </Border>
         </Grid>

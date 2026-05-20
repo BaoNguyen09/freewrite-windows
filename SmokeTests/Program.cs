@@ -14,6 +14,7 @@ try
     Assert(loaded[0].Filename == textEntry.Filename, "preserves canonical filename");
     Assert(loaded[0].PreviewText == "First line Second line", "normalizes text preview");
     Assert(File.Exists(Path.Combine(root, textEntry.Filename)), "writes markdown file");
+    Assert(PdfExporter.ExportFilename(textEntry) == Path.ChangeExtension(textEntry.Filename, ".pdf"), "exports with canonical entry filename");
 
     var sourceVideo = Path.Combine(root, "source.mp4");
     File.WriteAllBytes(sourceVideo, [0, 1, 2, 3]);

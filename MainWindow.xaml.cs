@@ -11,6 +11,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Windows.Media.Capture;
+using Windows.Media.MediaProperties;
 using Windows.Storage;
 using WinRT.Interop;
 
@@ -20,6 +21,8 @@ public partial class MainWindow : Window
 {
     private readonly AppSettings _settings;
     private readonly DispatcherTimer _focusTimer;
+    private readonly DispatcherTimer _saveTimer;
+    private readonly DispatcherTimer _recordingTimer;
     private readonly Random _random = new();
     private readonly double[] _fontSizes = [16, 18, 20, 22, 24, 26];
     private readonly string[] _placeholderOptions =
@@ -45,6 +48,8 @@ public partial class MainWindow : Window
     private bool _isVideoEntryVisible;
     private bool _isVideoPaused;
     private HumanEntry? _pendingDeleteEntry;
+    private TaskCompletionSource<bool>? _recordingStopCompletion;
+    private DateTime _recordingStartedAt;
     private int _timeRemaining = 900;
     private string _selectedFont = "Lato";
     private string _currentRandomFont = string.Empty;
@@ -86,7 +91,16 @@ public partial class MainWindow : Window
         _isDarkMode = _settings.ColorScheme == "dark";
         _focusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _focusTimer.Tick += FocusTimer_Tick;
+        _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+        _saveTimer.Tick += (_, _) =>
+        {
+            _saveTimer.Stop();
+            SaveCurrentEntry(Sidebar.Visibility == Visibility.Visible);
+        };
+        _recordingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _recordingTimer.Tick += RecordingTimer_Tick;
         Loaded += MainWindow_Loaded;
+        Closing += (_, _) => SaveCurrentEntry(renderHistory: false);
         Closed += (_, _) => _settings.Save();
     }
 
@@ -208,15 +222,25 @@ public partial class MainWindow : Window
         return reader.ReadToEnd();
     }
 
-    private void SaveCurrentEntry()
+    private void SaveCurrentEntry(bool renderHistory = true)
     {
+        _saveTimer.Stop();
         if (_isLoadingEntry || _selectedEntry is null || _selectedEntry.EntryType != EntryType.Text)
         {
             return;
         }
 
         _store.SaveEntry(_selectedEntry, EditorTextBox.Text);
-        RenderHistory();
+        if (renderHistory)
+        {
+            RenderHistory();
+        }
+    }
+
+    private void QueueSaveCurrentEntry()
+    {
+        _saveTimer.Stop();
+        _saveTimer.Start();
     }
 
     private void RenderHistory()
@@ -246,6 +270,10 @@ public partial class MainWindow : Window
             Padding = new Thickness(14, 10, 12, 10),
             Cursor = Cursors.Hand
         };
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var textPanel = new StackPanel { Orientation = Orientation.Vertical };
         if (entry.EntryType == EntryType.Video && entry.VideoFilename is not null)
@@ -285,9 +313,40 @@ public partial class MainWindow : Window
         menu.Items.Add(ChatMenuItem("Export", () => ExportEntry(entry)));
         menu.Items.Add(ChatMenuItem("Delete", () => DeleteEntry(entry)));
         border.ContextMenu = menu;
-        border.Child = textPanel;
+        grid.Children.Add(textPanel);
+
+        var actionPanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+        var exportButton = SmallActionButton("Export");
+        exportButton.Click += (_, e) =>
+        {
+            e.Handled = true;
+            ExportEntry(entry);
+        };
+        var deleteButton = SmallActionButton("Delete");
+        deleteButton.Click += (_, e) =>
+        {
+            e.Handled = true;
+            DeleteEntry(entry);
+        };
+        actionPanel.Children.Add(exportButton);
+        actionPanel.Children.Add(deleteButton);
+        Grid.SetColumn(actionPanel, 1);
+        grid.Children.Add(actionPanel);
+
+        border.Child = grid;
         border.MouseLeftButtonUp += (_, _) => SelectEntry(entry);
         return border;
+    }
+
+    private Button SmallActionButton(string text)
+    {
+        return new Button
+        {
+            Content = text,
+            Style = (Style)FindResource("PlainButton"),
+            FontSize = 11,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
     }
 
     private void ConfirmDelete_Click(object sender, RoutedEventArgs e)
@@ -443,6 +502,16 @@ public partial class MainWindow : Window
             : Brushes.White;
         DeleteDialogTitle.Foreground = fg;
         DeleteDialogBody.Foreground = soft;
+        RecordDialog.Background = DeleteDialog.Background;
+        RecordDialogTitle.Foreground = fg;
+        RecordElapsedText.Foreground = soft;
+        CancelDeleteButton.Background = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(48, 48, 48))
+            : new SolidColorBrush(Color.FromRgb(238, 238, 238));
+        StopRecordingButton.Background = CancelDeleteButton.Background;
+        ConfirmDeleteButton.Background = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(72, 34, 34))
+            : new SolidColorBrush(Color.FromRgb(248, 226, 226));
 
         foreach (var button in FindVisualChildren<Button>(RootGrid))
         {
@@ -462,8 +531,12 @@ public partial class MainWindow : Window
         UpdatePlaceholder();
         if (!_isLoadingEntry && _selectedEntry?.EntryType == EntryType.Text)
         {
-            _store.SaveEntry(_selectedEntry, EditorTextBox.Text);
-            RenderHistory();
+            _selectedEntry.PreviewText = FreewriteStore.PreviewTextFromContent(EditorTextBox.Text, 30);
+            QueueSaveCurrentEntry();
+            if (Sidebar.Visibility == Visibility.Visible)
+            {
+                RenderHistory();
+            }
         }
     }
 
@@ -618,9 +691,28 @@ public partial class MainWindow : Window
             transcriptCaptureStarted = false;
             ImportVideoFromPath(tempFile.Path, transcript);
         }
-        catch (Exception ex)
+        catch (Exception cameraException)
         {
-            MessageBox.Show(this, $"Windows camera capture failed. Use Choose Video instead.\n\n{ex.Message}", "Freewrite");
+            try
+            {
+                var fallbackPath = await RecordVideoInAppAsync();
+                if (fallbackPath is null)
+                {
+                    return;
+                }
+
+                var transcript = transcriptCaptureStarted ? await transcriptCapture.StopAsync() : null;
+                transcriptCaptureStarted = false;
+                ImportVideoFromPath(fallbackPath, transcript);
+            }
+            catch (Exception fallbackException)
+            {
+                MessageBox.Show(
+                    this,
+                    "Windows camera capture failed, and the fallback recorder could not start. Use Choose Video instead.\n\n"
+                        + $"Camera: {cameraException.Message}\n\nFallback: {fallbackException.Message}",
+                    "Freewrite");
+            }
         }
         finally
         {
@@ -629,6 +721,61 @@ public partial class MainWindow : Window
                 await transcriptCapture.StopAsync();
             }
         }
+    }
+
+    private async Task<string?> RecordVideoInAppAsync()
+    {
+        using var mediaCapture = new MediaCapture();
+        await mediaCapture.InitializeAsync(new MediaCaptureInitializationSettings
+        {
+            StreamingCaptureMode = StreamingCaptureMode.AudioAndVideo
+        });
+
+        var tempFolder = await StorageFolder.GetFolderFromPathAsync(Path.GetTempPath());
+        var outputFile = await tempFolder.CreateFileAsync($"{Guid.NewGuid()}.mp4", CreationCollisionOption.ReplaceExisting);
+        var profile = MediaEncodingProfile.CreateMp4(VideoEncodingQuality.Auto);
+
+        _recordingStopCompletion = new TaskCompletionSource<bool>();
+        ShowRecordingOverlay();
+        try
+        {
+            await mediaCapture.StartRecordToStorageFileAsync(profile, outputFile);
+            await _recordingStopCompletion.Task;
+            await mediaCapture.StopRecordAsync();
+            return outputFile.Path;
+        }
+        finally
+        {
+            HideRecordingOverlay();
+            _recordingStopCompletion = null;
+        }
+    }
+
+    private void ShowRecordingOverlay()
+    {
+        _recordingStartedAt = DateTime.Now;
+        RecordElapsedText.Text = "00:00";
+        RecordOverlay.Visibility = Visibility.Visible;
+        _recordingTimer.Start();
+    }
+
+    private void HideRecordingOverlay()
+    {
+        _recordingTimer.Stop();
+        RecordOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void StopRecording_Click(object sender, RoutedEventArgs e)
+    {
+        _recordingStopCompletion?.TrySetResult(true);
+    }
+
+    private void RecordingTimer_Tick(object? sender, EventArgs e)
+    {
+        var elapsed = DateTime.Now - _recordingStartedAt;
+        RecordElapsedText.Text = elapsed.TotalHours >= 1
+            ? elapsed.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
+            : elapsed.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
     }
 
     private void ChooseVideoFile()

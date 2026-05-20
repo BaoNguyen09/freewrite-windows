@@ -18,7 +18,7 @@ public static class PdfExporter
         var saveDialog = new SaveFileDialog
         {
             Filter = "PDF file (*.pdf)|*.pdf",
-            FileName = ExtractTitle(content, entry.Date) + ".pdf",
+            FileName = ExportFilename(entry),
             AddExtension = true,
             DefaultExt = ".pdf"
         };
@@ -31,18 +31,9 @@ public static class PdfExporter
         File.WriteAllBytes(saveDialog.FileName, CreatePdf(content));
     }
 
-    public static string ExtractTitle(string content, string date)
+    public static string ExportFilename(HumanEntry entry)
     {
-        var words = content
-            .Trim()
-            .ReplaceLineEndings(" ")
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(word => word.Trim('.', ',', '!', '?', ';', ':', '"', '\'', '(', ')', '[', ']', '{', '}', '<', '>').ToLowerInvariant())
-            .Where(word => !string.IsNullOrWhiteSpace(word))
-            .Take(4)
-            .ToArray();
-
-        return words.Length == 0 ? $"Entry {date}" : string.Join("-", words);
+        return Path.ChangeExtension(entry.Filename, ".pdf");
     }
 
     private static byte[] CreatePdf(string content)
