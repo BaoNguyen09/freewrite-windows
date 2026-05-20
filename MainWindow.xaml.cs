@@ -580,6 +580,9 @@ public partial class MainWindow : Window
 
     private async Task RecordVideoWithWindowsCameraAsync()
     {
+        using var transcriptCapture = new WindowsTranscriptCapture();
+        var transcriptCaptureStarted = await transcriptCapture.TryStartAsync();
+
         try
         {
             var captureUi = new CameraCaptureUI();
@@ -598,11 +601,20 @@ public partial class MainWindow : Window
                 tempFolder,
                 $"{Guid.NewGuid()}{Path.GetExtension(capturedFile.Name)}",
                 NameCollisionOption.ReplaceExisting);
-            ImportVideoFromPath(tempFile.Path);
+            var transcript = transcriptCaptureStarted ? await transcriptCapture.StopAsync() : null;
+            transcriptCaptureStarted = false;
+            ImportVideoFromPath(tempFile.Path, transcript);
         }
         catch (Exception ex)
         {
             MessageBox.Show(this, $"Windows camera capture failed. Use Choose Video instead.\n\n{ex.Message}", "Freewrite");
+        }
+        finally
+        {
+            if (transcriptCaptureStarted)
+            {
+                await transcriptCapture.StopAsync();
+            }
         }
     }
 
@@ -622,10 +634,10 @@ public partial class MainWindow : Window
         ImportVideoFromPath(dialog.FileName);
     }
 
-    private void ImportVideoFromPath(string videoPath)
+    private void ImportVideoFromPath(string videoPath, string? capturedTranscript = null)
     {
         var transcriptCandidate = Path.ChangeExtension(videoPath, ".md");
-        var transcript = File.Exists(transcriptCandidate) ? File.ReadAllText(transcriptCandidate) : null;
+        var transcript = capturedTranscript ?? (File.Exists(transcriptCandidate) ? File.ReadAllText(transcriptCandidate) : null);
         var replacement = _selectedEntry?.EntryType == EntryType.Text && string.IsNullOrWhiteSpace(EditorTextBox.Text)
             ? _selectedEntry
             : null;

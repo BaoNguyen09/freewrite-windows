@@ -26,6 +26,7 @@ Source inspected: `farzaa/freewrite` on `main`, commit `c21d71c` (`Fix TextEdito
 - ChatGPT/Claude/copy-prompt flow using the same prompt text from the Swift source.
 - Video playback through WPF `MediaElement`, including loop-on-end.
 - Video creation through the Windows built-in camera UI, plus manual video import as fallback.
+- Best-effort Windows continuous dictation capture during camera recording, saved to `transcript.md` when Windows returns recognized text.
 
 ## Not Fully Identical
 
@@ -46,7 +47,7 @@ This is not impossible in first principles; it is an implementation gap, not an 
 
 ### Speech Transcription
 
-The macOS app transcribes during recording with Apple's Speech framework and saves `transcript.md`. The Windows app preserves and reads `transcript.md` when present, and imports a sidecar transcript if a same-named `.md` exists next to an imported video. It does not yet generate a live transcript during Windows camera capture.
+The macOS app transcribes during recording with Apple's Speech framework and saves `transcript.md`. The Windows app now starts Windows continuous dictation while the Windows camera UI is open and saves recognized text as `transcript.md` when available. This is best-effort because Windows camera capture and Windows speech recognition can both need microphone access. If Windows cannot run both at once, recording still proceeds and the entry is saved without a generated transcript. The app also preserves and reads `transcript.md` when present, and imports a sidecar transcript if a same-named `.md` exists next to an imported video.
 
 ### Video Codecs
 
