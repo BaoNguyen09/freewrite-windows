@@ -1,12 +1,166 @@
-﻿<Window x:Class="FreewriteWindows.MainWindow"
+<Window x:Class="FreewriteWindows.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:FreewriteWindows"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Freewrite"
+        Width="1100"
+        Height="600"
+        MinWidth="1100"
+        MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResizeWithGrip"
+        Background="White"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Window.Resources>
+        <Style x:Key="PlainButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="2,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="#888888" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="#111111" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
 
+    <Grid x:Name="RootGrid" Background="White">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition x:Name="SidebarColumn" Width="0" />
+        </Grid.ColumnDefinitions>
+
+        <Grid x:Name="MainSurface"
+              Grid.Column="0"
+              MouseLeftButtonDown="MainSurface_MouseLeftButtonDown">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="68" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <MediaElement x:Name="VideoPlayer"
+                              LoadedBehavior="Manual"
+                              UnloadedBehavior="Stop"
+                              Stretch="UniformToFill"
+                              Visibility="Collapsed"
+                              MediaEnded="VideoPlayer_MediaEnded"
+                              MediaFailed="VideoPlayer_MediaFailed" />
+
+                <Grid x:Name="EditorShell"
+                      HorizontalAlignment="Center"
+                      MaxWidth="650"
+                      Margin="0,40,0,0">
+                    <TextBox x:Name="EditorTextBox"
+                             AcceptsReturn="True"
+                             AcceptsTab="True"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             FontFamily="Lato"
+                             FontSize="18"
+                             Foreground="#333333"
+                             HorizontalScrollBarVisibility="Disabled"
+                             IsUndoEnabled="False"
+                             Padding="0,0,0,68"
+                             SpellCheck.IsEnabled="False"
+                             TextChanged="EditorTextBox_TextChanged"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" />
+
+                    <TextBlock x:Name="PlaceholderText"
+                               Margin="2,4,0,0"
+                               FontFamily="Lato"
+                               FontSize="18"
+                               Foreground="#BBBBBB"
+                               IsHitTestVisible="False"
+                               Text="Begin writing"
+                               Visibility="Collapsed" />
+                </Grid>
+            </Grid>
+
+            <Grid x:Name="BottomNav"
+                  Grid.Row="1"
+                  Height="68"
+                  Background="Transparent"
+                  MouseEnter="BottomNav_MouseEnter"
+                  MouseLeave="BottomNav_MouseLeave">
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Disabled"
+                              Padding="24,0">
+                    <StackPanel x:Name="BottomNavItems"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center">
+                        <Button x:Name="CopyTranscriptButton" Content="Copy Transcript" Style="{StaticResource PlainButton}" Click="CopyTranscript_Click" Visibility="Collapsed" />
+                        <Button x:Name="FontSizeButton" Content="18px" Style="{StaticResource PlainButton}" Click="FontSize_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button Content="Lato" Style="{StaticResource PlainButton}" Click="Lato_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button Content="Arial" Style="{StaticResource PlainButton}" Click="Arial_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button Content="System" Style="{StaticResource PlainButton}" Click="SystemFont_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button Content="Serif" Style="{StaticResource PlainButton}" Click="Serif_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="RandomFontButton" Content="Random" Style="{StaticResource PlainButton}" Click="RandomFont_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="TimerButton" Content="15:00" Style="{StaticResource PlainButton}" Click="Timer_Click" MouseDoubleClick="Timer_DoubleClick" MouseWheel="Timer_MouseWheel" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="VideoButton" Content="Video" Style="{StaticResource PlainButton}" Click="Video_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="ChatButton" Content="Chat" Style="{StaticResource PlainButton}" Click="Chat_Click" />
+                        <TextBlock x:Name="BackspaceSeparator" Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="BackspaceButton" Content="Backspace is On" Style="{StaticResource PlainButton}" Click="Backspace_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="FullscreenButton" Content="Fullscreen" Style="{StaticResource PlainButton}" Click="Fullscreen_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button Content="New Entry" Style="{StaticResource PlainButton}" Click="NewEntry_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="ThemeButton" Content="Dark" Style="{StaticResource PlainButton}" Click="Theme_Click" />
+                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="HistoryButton" Content="History" Style="{StaticResource PlainButton}" Click="History_Click" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <Border x:Name="Sidebar"
+                Grid.Column="1"
+                BorderBrush="#EEEEEE"
+                BorderThickness="1,0,0,0"
+                Background="White"
+                Visibility="Collapsed">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="72" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Button Style="{StaticResource PlainButton}"
+                        HorizontalContentAlignment="Stretch"
+                        Click="OpenFolder_Click">
+                    <StackPanel Margin="16,12">
+                        <TextBlock Text="History" FontSize="13" Foreground="#555555" />
+                        <TextBlock x:Name="FolderPathText" FontSize="10" Foreground="#999999" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Button>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
+                    <StackPanel x:Name="HistoryItems" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
