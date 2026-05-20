@@ -50,6 +50,8 @@ public partial class MainWindow : Window
     private HumanEntry? _pendingDeleteEntry;
     private TaskCompletionSource<bool>? _recordingStopCompletion;
     private DateTime _recordingStartedAt;
+    private string _videoButtonDefaultContent = "Video";
+    private Brush? _videoButtonDefaultForeground;
     private int _timeRemaining = 900;
     private string _selectedFont = "Lato";
     private string _currentRandomFont = string.Empty;
@@ -108,9 +110,23 @@ public partial class MainWindow : Window
     {
         ApplyTheme();
         ApplyFont();
+        NormalizeEditorChrome();
+        _videoButtonDefaultContent = VideoButton.Content?.ToString() ?? "Video";
+        _videoButtonDefaultForeground = VideoButton.Foreground;
         LoadExistingEntries();
         UpdateTimerText();
         UpdateFolderPath();
+    }
+
+    private void NormalizeEditorChrome()
+    {
+        EditorTextBox.BorderThickness = new Thickness(0);
+        var scrollViewer = FindVisualChildren<ScrollViewer>(EditorTextBox).FirstOrDefault();
+        if (scrollViewer is not null)
+        {
+            scrollViewer.Padding = new Thickness(0);
+            scrollViewer.Margin = new Thickness(0);
+        }
     }
 
     private void LoadExistingEntries()
@@ -309,9 +325,10 @@ public partial class MainWindow : Window
             TextTrimming = TextTrimming.CharacterEllipsis
         });
 
-        var menu = new ContextMenu();
-        menu.Items.Add(ChatMenuItem("Export", () => ExportEntry(entry)));
-        menu.Items.Add(ChatMenuItem("Delete", () => DeleteEntry(entry)));
+        var menu = FreewriteMenu.Create(border, _isDarkMode, minWidth: 140, maxWidth: 180);
+        menu.Items.Add(FreewriteMenu.CreateItem("Export", () => ExportEntry(entry), _isDarkMode));
+        menu.Items.Add(FreewriteMenu.CreateDivider(_isDarkMode));
+        menu.Items.Add(FreewriteMenu.CreateItem("Delete", () => DeleteEntry(entry), _isDarkMode));
         border.ContextMenu = menu;
         grid.Children.Add(textPanel);
 
@@ -459,7 +476,6 @@ public partial class MainWindow : Window
         SerifButton.Visibility = fontVisibility;
         FontSep5.Visibility = fontVisibility;
         RandomFontButton.Visibility = fontVisibility;
-        FontSep6.Visibility = fontVisibility;
         BackspaceSeparator.Visibility = _isVideoEntryVisible ? Visibility.Collapsed : Visibility.Visible;
         BackspaceButton.Visibility = _isVideoEntryVisible ? Visibility.Collapsed : Visibility.Visible;
         UpdateVideoPlaybackControls();
@@ -503,7 +519,8 @@ public partial class MainWindow : Window
         DeleteDialogTitle.Foreground = fg;
         DeleteDialogBody.Foreground = soft;
         RecordDialog.Background = DeleteDialog.Background;
-        RecordDialogTitle.Foreground = fg;
+        RecordingStatusText.Foreground = new SolidColorBrush(Color.FromRgb(232, 75, 75));
+        RecordingPulseDot.Fill = RecordingStatusText.Foreground;
         RecordElapsedText.Foreground = soft;
         CancelDeleteButton.Background = _isDarkMode
             ? new SolidColorBrush(Color.FromRgb(48, 48, 48))
@@ -655,12 +672,13 @@ public partial class MainWindow : Window
 
     private void Video_Click(object sender, RoutedEventArgs e)
     {
-        var menu = new ContextMenu();
-        var recordItem = new MenuItem { Header = "Record Video" };
-        recordItem.Click += async (_, _) => await RecordVideoWithWindowsCameraAsync();
-        menu.Items.Add(recordItem);
-        menu.Items.Add(ChatMenuItem("Choose Video", ChooseVideoFile));
-        menu.PlacementTarget = VideoButton;
+        var menu = FreewriteMenu.Create(VideoButton, _isDarkMode, minWidth: 160, maxWidth: 220);
+        menu.Items.Add(FreewriteMenu.CreateItem(
+            "Record Video",
+            () => { _ = RecordVideoWithWindowsCameraAsync(); },
+            _isDarkMode));
+        menu.Items.Add(FreewriteMenu.CreateDivider(_isDarkMode));
+        menu.Items.Add(FreewriteMenu.CreateItem("Choose Video", ChooseVideoFile, _isDarkMode));
         menu.IsOpen = true;
     }
 
@@ -754,8 +772,11 @@ public partial class MainWindow : Window
     private void ShowRecordingOverlay()
     {
         _recordingStartedAt = DateTime.Now;
-        RecordElapsedText.Text = "00:00";
+        RecordElapsedText.Text = "0:00";
         RecordOverlay.Visibility = Visibility.Visible;
+        VideoButton.Content = "Recording";
+        VideoButton.Foreground = new SolidColorBrush(Color.FromRgb(232, 75, 75));
+        StartRecordingPulse();
         _recordingTimer.Start();
     }
 
@@ -763,6 +784,25 @@ public partial class MainWindow : Window
     {
         _recordingTimer.Stop();
         RecordOverlay.Visibility = Visibility.Collapsed;
+        StopRecordingPulse();
+        VideoButton.Content = _videoButtonDefaultContent;
+        VideoButton.Foreground = _videoButtonDefaultForeground ?? (_isDarkMode ? Brushes.Gray : Brushes.Gray);
+    }
+
+    private void StartRecordingPulse()
+    {
+        var animation = new DoubleAnimation(1, 0.35, TimeSpan.FromMilliseconds(700))
+        {
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever
+        };
+        RecordingPulseDot.BeginAnimation(UIElement.OpacityProperty, animation);
+    }
+
+    private void StopRecordingPulse()
+    {
+        RecordingPulseDot.BeginAnimation(UIElement.OpacityProperty, null);
+        RecordingPulseDot.Opacity = 1;
     }
 
     private void StopRecording_Click(object sender, RoutedEventArgs e)
@@ -773,9 +813,8 @@ public partial class MainWindow : Window
     private void RecordingTimer_Tick(object? sender, EventArgs e)
     {
         var elapsed = DateTime.Now - _recordingStartedAt;
-        RecordElapsedText.Text = elapsed.TotalHours >= 1
-            ? elapsed.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
-            : elapsed.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
+        var minutes = (int)elapsed.TotalMinutes;
+        RecordElapsedText.Text = $"{minutes}:{elapsed.Seconds:00}";
     }
 
     private void ChooseVideoFile()
@@ -822,31 +861,42 @@ public partial class MainWindow : Window
     private void Chat_Click(object sender, RoutedEventArgs e)
     {
         var sourceText = CurrentChatSourceText();
-        var menu = new ContextMenu();
+        var menu = FreewriteMenu.Create(ChatButton, _isDarkMode, minWidth: 120, maxWidth: 250);
         if (!_isVideoEntryVisible && EditorTextBox.Text.TrimStart().StartsWith("Hi. Welcome to Freewrite", StringComparison.OrdinalIgnoreCase))
         {
-            menu.Items.Add(new MenuItem { Header = "Yo. Sorry, you can't chat with the guide lol. Please write your own entry.", IsEnabled = false });
+            menu.Items.Add(FreewriteMenu.CreateItem(
+                "Yo. Sorry, you can't chat with the guide lol. Please write your own entry.",
+                action: null,
+                _isDarkMode,
+                enabled: false));
         }
         else if (!_isVideoEntryVisible && sourceText.Length < 350)
         {
-            menu.Items.Add(new MenuItem { Header = "Write at least 350 characters first.", IsEnabled = false });
+            menu.Items.Add(FreewriteMenu.CreateItem(
+                "Please free write for at minimum 5 minutes first. Then click this. Trust.",
+                action: null,
+                _isDarkMode,
+                enabled: false));
         }
         else
         {
-            menu.Items.Add(ChatMenuItem("ChatGPT", () => OpenChat("https://chat.openai.com/?prompt=", ChatGptPrompt, sourceText)));
-            menu.Items.Add(ChatMenuItem("Claude", () => OpenChat("https://claude.ai/new?q=", ClaudePrompt, sourceText)));
-            menu.Items.Add(ChatMenuItem("Copy Prompt", () => CopyPrompt(ChatGptPrompt, sourceText)));
+            menu.Items.Add(FreewriteMenu.CreateItem(
+                "ChatGPT",
+                () => OpenChat("https://chat.openai.com/?prompt=", ChatGptPrompt, sourceText),
+                _isDarkMode));
+            menu.Items.Add(FreewriteMenu.CreateDivider(_isDarkMode));
+            menu.Items.Add(FreewriteMenu.CreateItem(
+                "Claude",
+                () => OpenChat("https://claude.ai/new?q=", ClaudePrompt, sourceText),
+                _isDarkMode));
+            menu.Items.Add(FreewriteMenu.CreateDivider(_isDarkMode));
+            menu.Items.Add(FreewriteMenu.CreateItem(
+                "Copy Prompt",
+                () => CopyPrompt(ChatGptPrompt, sourceText),
+                _isDarkMode));
         }
 
-        menu.PlacementTarget = ChatButton;
         menu.IsOpen = true;
-    }
-
-    private MenuItem ChatMenuItem(string label, Action action)
-    {
-        var item = new MenuItem { Header = label };
-        item.Click += (_, _) => action();
-        return item;
     }
 
     private void OpenChat(string baseUrl, string prompt, string sourceText)
@@ -990,13 +1040,13 @@ public partial class MainWindow : Window
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {
-        var menu = new ContextMenu();
-        menu.Items.Add(ChatMenuItem("Open Folder", () =>
-        {
-            Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"\"{_store.RootDirectory}\"", UseShellExecute = true });
-        }));
-        menu.Items.Add(ChatMenuItem("Choose Folder", ChooseFolder));
-        menu.PlacementTarget = SidebarFolderButton;
+        var menu = FreewriteMenu.Create(SidebarFolderButton, _isDarkMode, minWidth: 140, maxWidth: 200);
+        menu.Items.Add(FreewriteMenu.CreateItem(
+            "Open Folder",
+            () => Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"\"{_store.RootDirectory}\"", UseShellExecute = true }),
+            _isDarkMode));
+        menu.Items.Add(FreewriteMenu.CreateDivider(_isDarkMode));
+        menu.Items.Add(FreewriteMenu.CreateItem("Choose Folder", ChooseFolder, _isDarkMode));
         menu.IsOpen = true;
     }
 

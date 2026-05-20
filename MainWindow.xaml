@@ -8,7 +8,9 @@
         MinHeight="600"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
-        ResizeMode="CanResizeWithGrip"
+        ResizeMode="CanResize"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
         Background="White"
         PreviewKeyDown="Window_PreviewKeyDown">
     <Window.Resources>
@@ -54,6 +56,7 @@
         <Style TargetType="{x:Type ScrollBar}">
             <Setter Property="Width" Value="6" />
             <Setter Property="MinWidth" Value="6" />
+            <Setter Property="Margin" Value="0,0,10,0" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Opacity" Value="0.65" />
         </Style>
@@ -94,6 +97,7 @@
 
                 <Grid x:Name="EditorShell"
                       HorizontalAlignment="Center"
+                      VerticalAlignment="Top"
                       Width="650"
                       MaxWidth="650"
                       Margin="0,40,0,0">
@@ -107,14 +111,23 @@
                              Foreground="#333333"
                              HorizontalScrollBarVisibility="Disabled"
                              IsUndoEnabled="False"
-                             Padding="0,0,0,68"
+                             Padding="5,0,28,68"
                              SpellCheck.IsEnabled="False"
                              TextChanged="EditorTextBox_TextChanged"
                              TextWrapping="Wrap"
-                             VerticalScrollBarVisibility="Auto" />
+                             VerticalAlignment="Stretch"
+                             VerticalContentAlignment="Top"
+                             VerticalScrollBarVisibility="Auto">
+                        <TextBox.Resources>
+                            <Style TargetType="{x:Type ScrollViewer}">
+                                <Setter Property="Padding" Value="0" />
+                            </Style>
+                        </TextBox.Resources>
+                    </TextBox>
 
                     <TextBlock x:Name="PlaceholderText"
-                               Margin="2,4,0,0"
+                               Margin="5,0,28,0"
+                               VerticalAlignment="Top"
                                FontFamily="Lato"
                                FontSize="18"
                                Foreground="#BBBBBB"
@@ -160,7 +173,6 @@
                             <Button x:Name="SerifButton" Content="Serif" Style="{StaticResource PlainButton}" Click="Serif_Click" />
                             <TextBlock x:Name="FontSep5" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
                             <Button x:Name="RandomFontButton" Content="Random" Style="{StaticResource PlainButton}" Click="RandomFont_Click" />
-                            <TextBlock x:Name="FontSep6" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
                         </StackPanel>
                     </ScrollViewer>
 
@@ -318,18 +330,28 @@
                     Background="White"
                     CornerRadius="8">
                 <StackPanel>
-                    <TextBlock x:Name="RecordDialogTitle"
-                               Text="Recording video"
-                               FontSize="16"
-                               FontWeight="SemiBold"
-                               Foreground="#222222" />
-                    <TextBlock x:Name="RecordElapsedText"
-                               Margin="0,8,0,18"
-                               Text="00:00"
-                               FontSize="24"
-                               Foreground="#777777" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                        <Ellipse x:Name="RecordingPulseDot"
+                                 Width="8"
+                                 Height="8"
+                                 Margin="0,0,8,0"
+                                 VerticalAlignment="Center"
+                                 Fill="#E84B4B" />
+                        <TextBlock x:Name="RecordingStatusText"
+                                   Text="Recording"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="#E84B4B"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0" />
+                        <TextBlock x:Name="RecordElapsedText"
+                                   Text="0:00"
+                                   FontSize="24"
+                                   Foreground="#777777"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
                     <Button x:Name="StopRecordingButton"
-                            Content="Stop"
+                            Content="Stop Recording"
                             HorizontalAlignment="Right"
                             Style="{StaticResource DialogButton}"
                             Click="StopRecording_Click" />
