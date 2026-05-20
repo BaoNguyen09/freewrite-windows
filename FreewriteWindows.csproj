@@ -11,6 +11,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="SmokeTests\**\*.cs" />
+    <None Remove="SmokeTests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Resources\default.md" />
     <Resource Include="Resources\fonts\*.ttf" />
   </ItemGroup>
