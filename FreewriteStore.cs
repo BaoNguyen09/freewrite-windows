@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Media.Imaging;
 
@@ -40,10 +41,9 @@ public sealed class FreewriteStore
                 var file = new FileInfo(path);
                 var videoFilename = file.Name.Replace(".md", ".mov", StringComparison.OrdinalIgnoreCase);
                 var hasVideo = HasVideoAsset(videoFilename);
-                var content = SafeReadAllText(file.FullName);
                 var preview = hasVideo
-                    ? VideoPreviewText(videoFilename)
-                    : PreviewTextFromContent(content, 30);
+                    ? PreviewTextFromTranscript(SafeReadHead(TranscriptPath(videoFilename), 400))
+                    : PreviewTextFromContent(SafeReadHead(file.FullName, 512), 30);
                 return HumanEntry.FromMarkdownFile(file, hasVideo, preview);
             })
             .Where(entry => entry is not null)
@@ -54,6 +54,57 @@ public sealed class FreewriteStore
     }
 
     public string EntryPath(HumanEntry entry) => Path.Combine(RootDirectory, entry.Filename);
+
+    public static string DictationAudioBaseName(string entryFilename) =>
+        Path.GetFileNameWithoutExtension(entryFilename);
+
+    public IReadOnlyList<string> ListDictationAudioPaths(HumanEntry entry)
+    {
+        var baseName = DictationAudioBaseName(entry.Filename);
+        var clips = new List<(DateTime SortKey, string Path)>();
+
+        var legacyPath = Path.Combine(RootDirectory, $"{baseName}.wav");
+        if (File.Exists(legacyPath))
+        {
+            clips.Add((File.GetLastWriteTimeUtc(legacyPath), legacyPath));
+        }
+
+        foreach (var path in Directory.EnumerateFiles(RootDirectory, $"{baseName}-talk-*.wav"))
+        {
+            clips.Add((File.GetLastWriteTimeUtc(path), path));
+        }
+
+        return clips
+            .OrderBy(clip => clip.SortKey)
+            .ThenBy(clip => clip.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(clip => clip.Path)
+            .ToList();
+    }
+
+    public string CreateDictationAudioPath(HumanEntry entry)
+    {
+        var baseName = DictationAudioBaseName(entry.Filename);
+        return Path.Combine(RootDirectory, $"{baseName}-talk-{DateTime.Now:yyyyMMdd-HHmmss}.wav");
+    }
+
+    public string? LatestDictationAudioPath(HumanEntry entry) =>
+        ListDictationAudioPaths(entry).LastOrDefault();
+
+    public string DictationAudioPath(HumanEntry entry)
+    {
+        var latest = LatestDictationAudioPath(entry);
+        if (latest is not null)
+        {
+            return latest;
+        }
+
+        return Path.Combine(RootDirectory, $"{DictationAudioBaseName(entry.Filename)}.wav");
+    }
+
+    public bool HasDictationAudio(HumanEntry entry) => ListDictationAudioPaths(entry).Count > 0;
+
+    public string PreferencesPath(HumanEntry entry) =>
+        Path.Combine(RootDirectory, entry.Filename.Replace(".md", ".prefs.json", StringComparison.OrdinalIgnoreCase));
 
     public string VideoEntryDirectory(string videoFilename)
     {
@@ -162,12 +213,51 @@ public sealed class FreewriteStore
         return entry;
     }
 
+    public EntryPreferences LoadEntryPreferences(HumanEntry entry)
+    {
+        var path = PreferencesPath(entry);
+        if (!File.Exists(path))
+        {
+            return new EntryPreferences();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<EntryPreferences>(File.ReadAllText(path)) ?? new EntryPreferences();
+        }
+        catch
+        {
+            return new EntryPreferences();
+        }
+    }
+
+    public void SaveEntryPreferences(HumanEntry entry, EntryPreferences preferences)
+    {
+        var path = PreferencesPath(entry);
+        var json = JsonSerializer.Serialize(preferences, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(path, json);
+    }
+
     public void DeleteEntry(HumanEntry entry)
     {
         var path = EntryPath(entry);
         if (File.Exists(path))
         {
             File.Delete(path);
+        }
+
+        var preferencesPath = PreferencesPath(entry);
+        if (File.Exists(preferencesPath))
+        {
+            File.Delete(preferencesPath);
+        }
+
+        foreach (var dictationAudioPath in ListDictationAudioPaths(entry))
+        {
+            if (File.Exists(dictationAudioPath))
+            {
+                File.Delete(dictationAudioPath);
+            }
         }
 
         if (entry.VideoFilename is null)
@@ -261,9 +351,25 @@ public sealed class FreewriteStore
         return string.IsNullOrWhiteSpace(preview) ? "Video Entry" : preview + "...";
     }
 
-    public string VideoPreviewText(string videoFilename)
+    private static string SafeReadHead(string path, int maxChars)
     {
-        return PreviewTextFromTranscript(LoadTranscript(videoFilename));
+        if (!File.Exists(path) || maxChars <= 0)
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(stream);
+            var buffer = new char[Math.Min(maxChars, 4096)];
+            var read = reader.Read(buffer, 0, buffer.Length);
+            return read <= 0 ? string.Empty : new string(buffer, 0, read);
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 
     private static string SafeReadAllText(string path)

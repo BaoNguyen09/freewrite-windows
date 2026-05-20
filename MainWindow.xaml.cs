@@ -7,9 +7,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using NAudio.Wave;
 using Windows.Media.Capture;
 using Windows.Media.MediaProperties;
 using Windows.Storage;
@@ -23,6 +25,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _focusTimer;
     private readonly DispatcherTimer _saveTimer;
     private readonly DispatcherTimer _recordingTimer;
+    private readonly DispatcherTimer _dictationPlaybackTimer;
     private readonly Random _random = new();
     private readonly double[] _fontSizes = [16, 18, 20, 22, 24, 26];
     private readonly string[] _placeholderOptions =
@@ -48,12 +51,21 @@ public partial class MainWindow : Window
     private bool _isVideoEntryVisible;
     private bool _isVideoPaused;
     private HumanEntry? _pendingDeleteEntry;
+    private readonly LocalTranscriptionService _transcription = new();
+    private AudioDictationService? _dictation;
     private TaskCompletionSource<bool>? _recordingStopCompletion;
     private DateTime _recordingStartedAt;
-    private string _videoButtonDefaultContent = "Video";
-    private Brush? _videoButtonDefaultForeground;
+    private bool _isTalkRecording;
+    private bool _isDictationPlaying;
+    private bool _dictationSeekDragging;
+    private TimeSpan? _dictationNaturalDuration;
+    private List<string> _dictationClips = [];
+    private int _selectedDictationClipIndex;
+    private string _talkButtonDefaultContent = "Talk";
+    private Brush? _talkButtonDefaultForeground;
     private int _timeRemaining = 900;
     private string _selectedFont = "Lato";
+    private double _currentFontSize = 18;
     private string _currentRandomFont = string.Empty;
     private WindowState _previousWindowState;
     private WindowStyle _previousWindowStyle;
@@ -101,37 +113,55 @@ public partial class MainWindow : Window
         };
         _recordingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _recordingTimer.Tick += RecordingTimer_Tick;
+        _dictationPlaybackTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _dictationPlaybackTimer.Tick += DictationPlaybackTimer_Tick;
         Loaded += MainWindow_Loaded;
-        Closing += (_, _) => SaveCurrentEntry(renderHistory: false);
-        Closed += (_, _) => _settings.Save();
+        SourceInitialized += (_, _) => BorderlessChrome.Apply(this);
+        Closing += (_, _) =>
+        {
+            SaveEntryTypography();
+            SaveCurrentEntry(renderHistory: false);
+        };
+        Closed += (_, _) =>
+        {
+            StopDictationPlayback();
+            _settings.Save();
+        };
     }
 
-    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         ApplyTheme();
         ApplyFont();
         NormalizeEditorChrome();
-        _videoButtonDefaultContent = VideoButton.Content?.ToString() ?? "Video";
-        _videoButtonDefaultForeground = VideoButton.Foreground;
-        LoadExistingEntries();
+        _talkButtonDefaultContent = TalkButton.Content?.ToString() ?? "Talk";
+        _talkButtonDefaultForeground = TalkButton.Foreground;
         UpdateTimerText();
         UpdateFolderPath();
-    }
+        EditorTextBox.IsEnabled = false;
 
-    private void NormalizeEditorChrome()
-    {
-        EditorTextBox.BorderThickness = new Thickness(0);
-        var scrollViewer = FindVisualChildren<ScrollViewer>(EditorTextBox).FirstOrDefault();
-        if (scrollViewer is not null)
+        try
         {
-            scrollViewer.Padding = new Thickness(0);
-            scrollViewer.Margin = new Thickness(0);
+            var entries = await Task.Run(() => _store.LoadEntries().ToList());
+            _entries = entries;
+            ApplyStartupEntrySelection();
+            RenderHistory();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not load entries.\n\n{ex.Message}", "Freewrite");
+            _entries = [];
+            CreateNewEntry();
+        }
+        finally
+        {
+            EditorTextBox.IsEnabled = true;
+            EditorTextBox.Focus();
         }
     }
 
-    private void LoadExistingEntries()
+    private void ApplyStartupEntrySelection()
     {
-        _entries = _store.LoadEntries().ToList();
         var hasEntryToday = _entries.Any(IsEntryFromToday);
         var hasEmptyTextEntryToday = _entries.Any(entry =>
             IsEntryFromToday(entry)
@@ -163,8 +193,17 @@ public partial class MainWindow : Window
         {
             SelectEntry(_entries[0]);
         }
+    }
 
-        RenderHistory();
+    private void NormalizeEditorChrome()
+    {
+        EditorTextBox.BorderThickness = new Thickness(0);
+        var scrollViewer = FindVisualChildren<ScrollViewer>(EditorTextBox).FirstOrDefault();
+        if (scrollViewer is not null)
+        {
+            scrollViewer.Padding = new Thickness(0, 0, 14, 0);
+            scrollViewer.Margin = new Thickness(0);
+        }
     }
 
     private static bool IsEntryFromToday(HumanEntry entry)
@@ -174,6 +213,8 @@ public partial class MainWindow : Window
 
     private void SelectEntry(HumanEntry entry)
     {
+        StopDictationPlayback();
+        SaveEntryTypography();
         SaveCurrentEntry();
         _selectedEntry = entry;
         _isLoadingEntry = true;
@@ -196,13 +237,16 @@ public partial class MainWindow : Window
             _isLoadingEntry = false;
         }
 
+        LoadEntryTypography(entry);
         UpdateVideoAwareControls();
+        UpdateDictationAudioBar();
         UpdatePlaceholder();
         RenderHistory();
     }
 
     private void CreateNewEntry()
     {
+        SaveEntryTypography();
         SaveCurrentEntry();
         var entry = HumanEntry.CreateNew();
         _entries.Insert(0, entry);
@@ -220,10 +264,162 @@ public partial class MainWindow : Window
             _isLoadingEntry = false;
         }
 
+        LoadEntryTypography(entry);
         UpdateVideoAwareControls();
+        UpdateDictationAudioBar();
         UpdatePlaceholder();
         RenderHistory();
         EditorTextBox.Focus();
+    }
+
+    private void UpdateDictationAudioBar(bool selectLatest = false)
+    {
+        var previousPath = GetSelectedDictationPath();
+        _dictationClips = _selectedEntry is not null && _selectedEntry.EntryType == EntryType.Text
+            ? _store.ListDictationAudioPaths(_selectedEntry).ToList()
+            : [];
+
+        var hasAudio = _dictationClips.Count > 0;
+        DictationAudioBar.Visibility = hasAudio ? Visibility.Visible : Visibility.Collapsed;
+        RetryTranscribeButton.Visibility = hasAudio ? Visibility.Visible : Visibility.Collapsed;
+
+        if (!hasAudio)
+        {
+            _selectedDictationClipIndex = 0;
+            StopDictationPlayback();
+            RenderDictationClipSelector();
+            return;
+        }
+
+        if (selectLatest)
+        {
+            _selectedDictationClipIndex = _dictationClips.Count - 1;
+        }
+        else if (previousPath is not null)
+        {
+            var preservedIndex = _dictationClips.FindIndex(path =>
+                path.Equals(previousPath, StringComparison.OrdinalIgnoreCase));
+            _selectedDictationClipIndex = preservedIndex >= 0 ? preservedIndex : _dictationClips.Count - 1;
+        }
+        else
+        {
+            _selectedDictationClipIndex = _dictationClips.Count - 1;
+        }
+
+        ReleaseDictationMedia();
+        RenderDictationClipSelector();
+        ResetDictationPlaybackUi();
+    }
+
+    private string? GetSelectedDictationPath()
+    {
+        if (_dictationClips.Count == 0 || _selectedDictationClipIndex < 0 || _selectedDictationClipIndex >= _dictationClips.Count)
+        {
+            return null;
+        }
+
+        return _dictationClips[_selectedDictationClipIndex];
+    }
+
+    private void RenderDictationClipSelector()
+    {
+        DictationClipSelector.Children.Clear();
+        if (_dictationClips.Count <= 1)
+        {
+            DictationClipSelector.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        DictationClipSelector.Visibility = Visibility.Visible;
+        var plainButtonStyle = (Style)FindResource("PlainButton");
+        var softBrush = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(128, 128, 128))
+            : new SolidColorBrush(Color.FromRgb(136, 136, 136));
+        var activeBrush = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(220, 220, 220))
+            : new SolidColorBrush(Color.FromRgb(68, 68, 68));
+
+        for (var i = 0; i < _dictationClips.Count; i++)
+        {
+            if (i > 0)
+            {
+                DictationClipSelector.Children.Add(new TextBlock
+                {
+                    Text = "·",
+                    FontSize = 11,
+                    Margin = new Thickness(2, 0, 2, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = softBrush
+                });
+            }
+
+            var clipIndex = i;
+            var clipButton = new Button
+            {
+                Content = $"{i + 1}",
+                Tag = clipIndex,
+                Style = plainButtonStyle,
+                FontSize = 11,
+                Padding = new Thickness(4, 0, 4, 0),
+                MinWidth = 0,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Foreground = i == _selectedDictationClipIndex ? activeBrush : softBrush,
+                FontWeight = i == _selectedDictationClipIndex ? FontWeights.SemiBold : FontWeights.Normal,
+                Cursor = Cursors.Hand,
+                ToolTip = $"Recording {i + 1}"
+            };
+            clipButton.Click += (_, _) => SelectDictationClip(clipIndex);
+            DictationClipSelector.Children.Add(clipButton);
+        }
+    }
+
+    private void SelectDictationClip(int index)
+    {
+        if (index < 0 || index >= _dictationClips.Count || index == _selectedDictationClipIndex)
+        {
+            return;
+        }
+
+        ReleaseDictationMedia();
+        _selectedDictationClipIndex = index;
+        RenderDictationClipSelector();
+        ResetDictationPlaybackUi();
+        ApplyDictationDurationToSlider(GetSelectedDictationPath());
+    }
+
+    private void LoadEntryTypography(HumanEntry entry)
+    {
+        var preferences = _store.LoadEntryPreferences(entry);
+        _selectedFont = preferences.FontName;
+        _currentFontSize = _fontSizes.FirstOrDefault(size => Math.Abs(size - preferences.FontSize) < 0.01);
+        if (_currentFontSize <= 0)
+        {
+            _currentFontSize = 18;
+        }
+
+        _currentRandomFont = preferences.RandomFontName ?? string.Empty;
+        RandomFontButton.Content = string.IsNullOrEmpty(_currentRandomFont)
+            ? "Random"
+            : $"Random [{_currentRandomFont}]";
+        ApplyFont();
+    }
+
+    private void SaveEntryTypography()
+    {
+        if (_selectedEntry is null)
+        {
+            return;
+        }
+
+        _store.SaveEntryPreferences(
+            _selectedEntry,
+            new EntryPreferences
+            {
+                FontName = _selectedFont,
+                FontSize = _currentFontSize,
+                RandomFontName = string.IsNullOrEmpty(_currentRandomFont) ? null : _currentRandomFont
+            });
     }
 
     private static string LoadDefaultGuide()
@@ -267,13 +463,14 @@ public partial class MainWindow : Window
         }
 
         HistoryItems.Children.Clear();
+        var includeThumbnails = Sidebar.Visibility == Visibility.Visible;
         foreach (var entry in _entries)
         {
-            HistoryItems.Children.Add(CreateHistoryRow(entry));
+            HistoryItems.Children.Add(CreateHistoryRow(entry, includeThumbnails));
         }
     }
 
-    private UIElement CreateHistoryRow(HumanEntry entry)
+    private UIElement CreateHistoryRow(HumanEntry entry, bool includeThumbnails)
     {
         var isSelected = _selectedEntry?.Id == entry.Id;
         var border = new Border
@@ -286,13 +483,20 @@ public partial class MainWindow : Window
             Padding = new Thickness(14, 10, 12, 10),
             Cursor = Cursors.Hand
         };
+        border.MouseRightButtonUp += (_, e) =>
+        {
+            if (border.ContextMenu is null)
+            {
+                AttachHistoryContextMenu(border, entry);
+            }
+        };
 
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var textPanel = new StackPanel { Orientation = Orientation.Vertical };
-        if (entry.EntryType == EntryType.Video && entry.VideoFilename is not null)
+        if (includeThumbnails && entry.EntryType == EntryType.Video && entry.VideoFilename is not null)
         {
             var thumb = _store.LoadThumbnail(entry.VideoFilename);
             if (thumb is not null)
@@ -325,11 +529,6 @@ public partial class MainWindow : Window
             TextTrimming = TextTrimming.CharacterEllipsis
         });
 
-        var menu = FreewriteMenu.Create(border, _isDarkMode, minWidth: 140, maxWidth: 180);
-        menu.Items.Add(FreewriteMenu.CreateItem("Export", () => ExportEntry(entry), _isDarkMode));
-        menu.Items.Add(FreewriteMenu.CreateDivider(_isDarkMode));
-        menu.Items.Add(FreewriteMenu.CreateItem("Delete", () => DeleteEntry(entry), _isDarkMode));
-        border.ContextMenu = menu;
         grid.Children.Add(textPanel);
 
         var actionPanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
@@ -434,6 +633,7 @@ public partial class MainWindow : Window
     private void ShowVideo(string path)
     {
         _isVideoEntryVisible = true;
+        DictationAudioBar.Visibility = Visibility.Collapsed;
         EditorShell.Visibility = Visibility.Collapsed;
         VideoPlayer.Visibility = Visibility.Visible;
         VideoPlayer.Source = new Uri(path);
@@ -450,6 +650,7 @@ public partial class MainWindow : Window
         VideoPlayer.Source = null;
         VideoPlayer.Visibility = Visibility.Collapsed;
         EditorShell.Visibility = Visibility.Visible;
+        UpdateDictationAudioBar();
         _isVideoPaused = false;
         UpdateVideoPlaybackControls();
     }
@@ -476,6 +677,7 @@ public partial class MainWindow : Window
         SerifButton.Visibility = fontVisibility;
         FontSep5.Visibility = fontVisibility;
         RandomFontButton.Visibility = fontVisibility;
+        TalkButton.Visibility = fontVisibility;
         BackspaceSeparator.Visibility = _isVideoEntryVisible ? Visibility.Collapsed : Visibility.Visible;
         BackspaceButton.Visibility = _isVideoEntryVisible ? Visibility.Collapsed : Visibility.Visible;
         UpdateVideoPlaybackControls();
@@ -489,9 +691,9 @@ public partial class MainWindow : Window
 
         EditorTextBox.FontFamily = fontFamily;
         PlaceholderText.FontFamily = fontFamily;
-        EditorTextBox.FontSize = _fontSizes.First(size => Math.Abs(size - EditorTextBox.FontSize) < 0.01);
-        PlaceholderText.FontSize = EditorTextBox.FontSize;
-        FontSizeButton.Content = $"{(int)EditorTextBox.FontSize}px";
+        EditorTextBox.FontSize = _currentFontSize;
+        PlaceholderText.FontSize = _currentFontSize;
+        FontSizeButton.Content = $"{(int)_currentFontSize}px";
     }
 
     private void ApplyTheme()
@@ -509,6 +711,8 @@ public partial class MainWindow : Window
             : new SolidColorBrush(Color.FromRgb(238, 238, 238));
         EditorTextBox.Background = Brushes.Transparent;
         EditorTextBox.Foreground = fg;
+        EditorTextBox.CaretBrush = _isDarkMode ? Brushes.White : new SolidColorBrush(Color.FromRgb(51, 51, 51));
+        EditorTextBox.Cursor = _isDarkMode ? FreewriteCursors.LightIBeam : Cursors.IBeam;
         PlaceholderText.Foreground = _isDarkMode ? new SolidColorBrush(Color.FromRgb(70, 70, 70)) : new SolidColorBrush(Color.FromRgb(187, 187, 187));
         ThemeButton.Content = _isDarkMode ? "Light Mode" : "Dark Mode";
         SidebarTitleText.Foreground = fg;
@@ -521,7 +725,25 @@ public partial class MainWindow : Window
         RecordDialog.Background = DeleteDialog.Background;
         RecordingStatusText.Foreground = new SolidColorBrush(Color.FromRgb(232, 75, 75));
         RecordingPulseDot.Fill = RecordingStatusText.Foreground;
-        RecordElapsedText.Foreground = soft;
+        VideoRecordElapsedText.Foreground = soft;
+        TalkRecordingBar.Background = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(28, 28, 28))
+            : new SolidColorBrush(Color.FromRgb(245, 245, 245));
+        TalkRecordingBar.BorderBrush = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(52, 52, 52))
+            : new SolidColorBrush(Color.FromRgb(220, 220, 220));
+        TalkElapsedText.Foreground = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(200, 200, 200))
+            : new SolidColorBrush(Color.FromRgb(100, 100, 100));
+        TalkWaveform.BarBrush = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(170, 170, 170))
+            : new SolidColorBrush(Color.FromRgb(120, 120, 120));
+        DictationAudioBar.Background = TalkRecordingBar.Background;
+        DictationAudioBar.BorderBrush = TalkRecordingBar.BorderBrush;
+        DictationTimeText.Foreground = soft;
+        DictationSeekSlider.Foreground = soft;
+        ApplyDictationSliderTrackBrush();
+        PlayPauseIcon.Fill = soft;
         CancelDeleteButton.Background = _isDarkMode
             ? new SolidColorBrush(Color.FromRgb(48, 48, 48))
             : new SolidColorBrush(Color.FromRgb(238, 238, 238));
@@ -541,6 +763,24 @@ public partial class MainWindow : Window
         _settings.ColorScheme = _isDarkMode ? "dark" : "light";
         _settings.Save();
         RenderHistory();
+    }
+
+    private void ApplyDictationSliderTrackBrush()
+    {
+        try
+        {
+            DictationSeekSlider.ApplyTemplate();
+            if (DictationSeekSlider.Template?.FindName("SliderTrack", DictationSeekSlider) is Border track)
+            {
+                track.Background = _isDarkMode
+                    ? new SolidColorBrush(Color.FromRgb(64, 64, 64))
+                    : new SolidColorBrush(Color.FromRgb(212, 212, 212));
+            }
+        }
+        catch
+        {
+            // Slider template not ready yet; safe to skip.
+        }
     }
 
     private void EditorTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -606,11 +846,16 @@ public partial class MainWindow : Window
 
     private void FontSize_Click(object sender, RoutedEventArgs e)
     {
-        var currentIndex = Array.FindIndex(_fontSizes, size => Math.Abs(size - EditorTextBox.FontSize) < 0.01);
+        var currentIndex = Array.FindIndex(_fontSizes, size => Math.Abs(size - _currentFontSize) < 0.01);
+        if (currentIndex < 0)
+        {
+            currentIndex = 1;
+        }
+
         var next = _fontSizes[(currentIndex + 1) % _fontSizes.Length];
-        EditorTextBox.FontSize = next;
-        PlaceholderText.FontSize = next;
-        FontSizeButton.Content = $"{(int)next}px";
+        _currentFontSize = next;
+        ApplyFont();
+        SaveEntryTypography();
     }
 
     private void Lato_Click(object sender, RoutedEventArgs e) => SetFont("Lato");
@@ -628,13 +873,22 @@ public partial class MainWindow : Window
             .FirstOrDefault() ?? "Segoe UI";
         _currentRandomFont = font;
         RandomFontButton.Content = $"Random [{font}]";
-        SetFont(font);
+        _selectedFont = font;
+        ApplyFont();
+        SaveEntryTypography();
     }
 
     private void SetFont(string font)
     {
         _selectedFont = font;
+        if (font != _currentRandomFont)
+        {
+            _currentRandomFont = string.Empty;
+            RandomFontButton.Content = "Random";
+        }
+
         ApplyFont();
+        SaveEntryTypography();
     }
 
     private void Timer_Click(object sender, RoutedEventArgs e)
@@ -670,16 +924,57 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void Video_Click(object sender, RoutedEventArgs e)
+    private async void Talk_Click(object sender, RoutedEventArgs e)
     {
-        var menu = FreewriteMenu.Create(VideoButton, _isDarkMode, minWidth: 160, maxWidth: 220);
-        menu.Items.Add(FreewriteMenu.CreateItem(
-            "Record Video",
-            () => { _ = RecordVideoWithWindowsCameraAsync(); },
-            _isDarkMode));
-        menu.Items.Add(FreewriteMenu.CreateDivider(_isDarkMode));
-        menu.Items.Add(FreewriteMenu.CreateItem("Choose Video", ChooseVideoFile, _isDarkMode));
-        menu.IsOpen = true;
+        if (_isTalkRecording)
+        {
+            return;
+        }
+
+        if (_selectedEntry is null || _selectedEntry.EntryType != EntryType.Text)
+        {
+            MessageBox.Show(this, "Talk works on text entries. Open or create a writing entry first.", "Freewrite");
+            return;
+        }
+
+        try
+        {
+            await StartTalkRecordingAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not start talk recording.\n\n{ex.Message}", "Freewrite");
+        }
+    }
+
+    private async Task StartTalkRecordingAsync()
+    {
+        ReleaseDictationMedia();
+        var audioPath = _store.CreateDictationAudioPath(_selectedEntry!);
+
+        _dictation = new AudioDictationService();
+        _dictation.LevelChanged += OnTalkLevelChanged;
+        await _dictation.StartAsync(audioPath);
+        _isTalkRecording = true;
+        _recordingStartedAt = DateTime.Now;
+        TalkElapsedText.Text = "0:00";
+        TalkWaveform.Reset();
+        TalkRecordingBar.Visibility = Visibility.Visible;
+        CancelTalkButton.IsEnabled = true;
+        FinishTalkButton.IsEnabled = true;
+        TalkButton.IsEnabled = false;
+        _recordingTimer.Start();
+    }
+
+    private void OnTalkLevelChanged(float level)
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            TalkWaveform.PushLevel(level);
+            return;
+        }
+
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, () => TalkWaveform.PushLevel(level));
     }
 
     private async Task RecordVideoWithWindowsCameraAsync()
@@ -769,13 +1064,26 @@ public partial class MainWindow : Window
         }
     }
 
+    private void HideTalkOverlay()
+    {
+        _recordingTimer.Stop();
+        TalkRecordingBar.Visibility = Visibility.Collapsed;
+        TalkButton.IsEnabled = true;
+        TalkButton.Content = _talkButtonDefaultContent;
+        TalkButton.Foreground = _talkButtonDefaultForeground ?? Brushes.Gray;
+        _isTalkRecording = false;
+        if (_dictation is not null)
+        {
+            _dictation.LevelChanged -= OnTalkLevelChanged;
+        }
+    }
+
     private void ShowRecordingOverlay()
     {
         _recordingStartedAt = DateTime.Now;
-        RecordElapsedText.Text = "0:00";
+        RecordingStatusText.Text = "Recording";
+        VideoRecordElapsedText.Text = "0:00";
         RecordOverlay.Visibility = Visibility.Visible;
-        VideoButton.Content = "Recording";
-        VideoButton.Foreground = new SolidColorBrush(Color.FromRgb(232, 75, 75));
         StartRecordingPulse();
         _recordingTimer.Start();
     }
@@ -785,8 +1093,6 @@ public partial class MainWindow : Window
         _recordingTimer.Stop();
         RecordOverlay.Visibility = Visibility.Collapsed;
         StopRecordingPulse();
-        VideoButton.Content = _videoButtonDefaultContent;
-        VideoButton.Foreground = _videoButtonDefaultForeground ?? (_isDarkMode ? Brushes.Gray : Brushes.Gray);
     }
 
     private void StartRecordingPulse()
@@ -810,11 +1116,389 @@ public partial class MainWindow : Window
         _recordingStopCompletion?.TrySetResult(true);
     }
 
+    private async void CancelTalk_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_isTalkRecording || _dictation is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _dictation.StopAsync();
+            var audioPath = _dictation.OutputPath ?? (_selectedEntry is not null
+                ? _store.DictationAudioPath(_selectedEntry)
+                : null);
+            if (audioPath is not null && File.Exists(audioPath))
+            {
+                File.Delete(audioPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not discard recording.\n\n{ex.Message}", "Freewrite");
+        }
+        finally
+        {
+            _dictation?.Dispose();
+            _dictation = null;
+            HideTalkOverlay();
+        }
+    }
+
+    private async void FinishTalk_Click(object sender, RoutedEventArgs e)
+    {
+        await FinishTalkRecordingAsync();
+    }
+
+    private async Task FinishTalkRecordingAsync()
+    {
+        if (_selectedEntry is null || _dictation is null || !_isTalkRecording)
+        {
+            HideTalkOverlay();
+            return;
+        }
+
+        _isTalkRecording = false;
+        _recordingTimer.Stop();
+        CancelTalkButton.IsEnabled = false;
+        FinishTalkButton.IsEnabled = false;
+        TalkElapsedText.Text = "Transcribing…";
+
+        try
+        {
+            await _dictation.StopAsync();
+            var audioPath = _dictation.OutputPath ?? GetSelectedDictationPath() ?? _store.LatestDictationAudioPath(_selectedEntry);
+            if (!File.Exists(audioPath))
+            {
+                MessageBox.Show(this, "No audio was captured. Check microphone permissions and try again.", "Freewrite");
+                HideTalkOverlay();
+                return;
+            }
+
+            var transcript = await _transcription.TranscribeWavAsync(
+                audioPath,
+                new Progress<string>(status => Dispatcher.Invoke(() => TalkElapsedText.Text = status)));
+
+            if (string.IsNullOrWhiteSpace(transcript))
+            {
+                MessageBox.Show(
+                    this,
+                    "Audio saved, but transcription came back empty. Use \"Transcribe again\" after the local model finishes downloading.",
+                    "Freewrite");
+            }
+            else
+            {
+                AppendTranscriptToEditor(transcript);
+                QueueSaveCurrentEntry();
+            }
+
+            UpdateDictationAudioBar(selectLatest: true);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"Transcription failed.\n\n{ex.Message}\n\nUse \"Transcribe again\" once the local model is ready.",
+                "Freewrite");
+            UpdateDictationAudioBar(selectLatest: true);
+        }
+        finally
+        {
+            _dictation?.Dispose();
+            _dictation = null;
+            ReleaseDictationMedia();
+            HideTalkOverlay();
+        }
+    }
+
+    private const string TranscriptTopSpacing = "\n\n";
+
+    private void AppendTranscriptToEditor(string transcript)
+    {
+        var trimmed = transcript.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(EditorTextBox.Text))
+        {
+            EditorTextBox.Text = TranscriptTopSpacing + trimmed;
+        }
+        else
+        {
+            EditorTextBox.Text = EditorTextBox.Text.TrimEnd() + "\n\n" + trimmed;
+        }
+
+        EditorTextBox.CaretIndex = EditorTextBox.Text.Length;
+    }
+
+    private void PlayDictation_Click(object sender, RoutedEventArgs e)
+    {
+        var path = GetSelectedDictationPath();
+        if (_selectedEntry is null || path is null)
+        {
+            return;
+        }
+
+        if (_isDictationPlaying)
+        {
+            DictationPlayer.Pause();
+            _isDictationPlaying = false;
+            SetPlayPauseIcon(isPlaying: false);
+            _dictationPlaybackTimer.Stop();
+            UpdateDictationPlaybackUi();
+            return;
+        }
+
+        if (DictationPlayer.Source is null || DictationPlayer.Source.LocalPath != path)
+        {
+            DictationPlayer.Source = new Uri(path);
+            _dictationNaturalDuration = null;
+            DictationSeekSlider.Value = 0;
+            ApplyDictationDurationToSlider(path);
+        }
+        else
+        {
+            ApplyDictationDurationToSlider();
+        }
+
+        DictationPlayer.Play();
+        _isDictationPlaying = true;
+        SetPlayPauseIcon(isPlaying: true);
+        _dictationPlaybackTimer.Start();
+    }
+
+    private void ReleaseDictationMedia()
+    {
+        _dictationPlaybackTimer.Stop();
+        _isDictationPlaying = false;
+        _dictationSeekDragging = false;
+        SetPlayPauseIcon(isPlaying: false);
+
+        if (DictationPlayer.Source is null)
+        {
+            return;
+        }
+
+        DictationPlayer.Stop();
+        DictationPlayer.Source = null;
+        _dictationNaturalDuration = null;
+    }
+
+    private void StopDictationPlayback()
+    {
+        ReleaseDictationMedia();
+        ResetDictationPlaybackUi();
+    }
+
+    private void ResetDictationPlaybackUi()
+    {
+        _dictationSeekDragging = false;
+        SetPlayPauseIcon(isPlaying: false);
+        DictationSeekSlider.Value = 0;
+        DictationTimeText.Text = FormatPlaybackTime(TimeSpan.Zero, GetDictationDuration());
+    }
+
+    private void SetPlayPauseIcon(bool isPlaying)
+    {
+        PlayPauseIcon.Data = isPlaying
+            ? Geometry.Parse("M 0,3 L 3.5,3 L 3.5,13 L 0,13 Z M 6.5,3 L 10,3 L 10,13 L 6.5,13 Z")
+            : Geometry.Parse("M 0,3 L 11,8 L 0,13 Z");
+        PlayDictationButton.ToolTip = isPlaying ? "Pause" : "Play";
+    }
+
+    private void DictationPlayer_MediaOpened(object sender, RoutedEventArgs e)
+    {
+        ApplyDictationDurationToSlider();
+        UpdateDictationPlaybackUi();
+    }
+
+    private void DictationPlayer_MediaEnded(object sender, RoutedEventArgs e)
+    {
+        _dictationPlaybackTimer.Stop();
+        _isDictationPlaying = false;
+        SetPlayPauseIcon(isPlaying: false);
+        var duration = GetDictationDuration();
+        if (duration > TimeSpan.Zero)
+        {
+            DictationSeekSlider.Value = DictationSeekSlider.Maximum;
+            DictationTimeText.Text = FormatPlaybackTime(duration, duration);
+        }
+    }
+
+    private void DictationPlaybackTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_dictationSeekDragging || !_isDictationPlaying)
+        {
+            return;
+        }
+
+        UpdateDictationPlaybackUi();
+    }
+
+    private void UpdateDictationPlaybackUi()
+    {
+        var position = DictationPlayer.Position;
+        var duration = GetDictationDuration();
+        if (duration > TimeSpan.Zero)
+        {
+            DictationSeekSlider.Maximum = Math.Max(1, duration.TotalSeconds);
+            DictationSeekSlider.Value = Math.Clamp(position.TotalSeconds, 0, DictationSeekSlider.Maximum);
+        }
+
+        DictationTimeText.Text = FormatPlaybackTime(position, duration);
+    }
+
+    private static string FormatPlaybackTime(TimeSpan position, TimeSpan duration)
+    {
+        return $"{FormatClock(position)} / {FormatClock(duration)}";
+    }
+
+    private static string FormatClock(TimeSpan time)
+    {
+        return time.TotalHours >= 1
+            ? $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}"
+            : $"{time.Minutes}:{time.Seconds:00}";
+    }
+
+    private void DictationSeekSlider_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _dictationSeekDragging = true;
+    }
+
+    private void DictationSeekSlider_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        _dictationSeekDragging = false;
+        SeekDictationToSlider();
+    }
+
+    private void DictationSeekSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_dictationSeekDragging)
+        {
+            return;
+        }
+
+        var duration = GetDictationDuration();
+        DictationTimeText.Text = FormatPlaybackTime(TimeSpan.FromSeconds(e.NewValue), duration);
+    }
+
+    private void SeekDictationToSlider()
+    {
+        if (DictationPlayer.Source is null)
+        {
+            return;
+        }
+
+        var duration = GetDictationDuration();
+        if (duration <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        var target = TimeSpan.FromSeconds(DictationSeekSlider.Value);
+        DictationPlayer.Position = target;
+        UpdateDictationPlaybackUi();
+    }
+
+    private void ApplyDictationDurationToSlider(string? wavPath = null)
+    {
+        if (!TryResolveDictationDuration(wavPath, out var duration))
+        {
+            return;
+        }
+
+        DictationSeekSlider.Maximum = Math.Max(1, duration.TotalSeconds);
+    }
+
+    private TimeSpan GetDictationDuration()
+    {
+        return TryResolveDictationDuration(null, out var duration) ? duration : TimeSpan.Zero;
+    }
+
+    private bool TryResolveDictationDuration(string? wavPath, out TimeSpan duration)
+    {
+        if (_dictationNaturalDuration is { } cached && cached > TimeSpan.Zero)
+        {
+            duration = cached;
+            return true;
+        }
+
+        if (DictationPlayer.NaturalDuration.HasTimeSpan)
+        {
+            duration = DictationPlayer.NaturalDuration.TimeSpan;
+            _dictationNaturalDuration = duration;
+            return duration > TimeSpan.Zero;
+        }
+
+        wavPath ??= DictationPlayer.Source?.LocalPath ?? GetSelectedDictationPath();
+
+        if (wavPath is null || !File.Exists(wavPath))
+        {
+            duration = TimeSpan.Zero;
+            return false;
+        }
+
+        try
+        {
+            using var reader = new WaveFileReader(wavPath);
+            duration = reader.TotalTime;
+            _dictationNaturalDuration = duration;
+            return duration > TimeSpan.Zero;
+        }
+        catch
+        {
+            duration = TimeSpan.Zero;
+            return false;
+        }
+    }
+
+    private async void RetryTranscribe_Click(object sender, RoutedEventArgs e)
+    {
+        var audioPath = GetSelectedDictationPath();
+        if (_selectedEntry is null || audioPath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            RetryTranscribeButton.IsEnabled = false;
+            var transcript = await _transcription.TranscribeWavAsync(audioPath);
+            if (string.IsNullOrWhiteSpace(transcript))
+            {
+                MessageBox.Show(this, "Transcription returned empty. Try again after the model download completes.", "Freewrite");
+                return;
+            }
+
+            AppendTranscriptToEditor(transcript);
+            QueueSaveCurrentEntry();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Transcription failed.\n\n{ex.Message}", "Freewrite");
+        }
+        finally
+        {
+            RetryTranscribeButton.IsEnabled = true;
+        }
+    }
+
     private void RecordingTimer_Tick(object? sender, EventArgs e)
     {
         var elapsed = DateTime.Now - _recordingStartedAt;
         var minutes = (int)elapsed.TotalMinutes;
-        RecordElapsedText.Text = $"{minutes}:{elapsed.Seconds:00}";
+        var text = $"{minutes}:{elapsed.Seconds:00}";
+        if (_isTalkRecording)
+        {
+            TalkElapsedText.Text = text;
+        }
+        else if (RecordOverlay.Visibility == Visibility.Visible)
+        {
+            VideoRecordElapsedText.Text = text;
+        }
     }
 
     private void ChooseVideoFile()
@@ -860,9 +1544,40 @@ public partial class MainWindow : Window
 
     private void Chat_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
+            OpenChatMenu();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Chat menu failed.\n\n{ex.Message}", "Freewrite");
+        }
+    }
+
+    private void OpenChatMenu()
+    {
         var sourceText = CurrentChatSourceText();
-        var menu = FreewriteMenu.Create(ChatButton, _isDarkMode, minWidth: 120, maxWidth: 250);
-        if (!_isVideoEntryVisible && EditorTextBox.Text.TrimStart().StartsWith("Hi. Welcome to Freewrite", StringComparison.OrdinalIgnoreCase))
+        var encodedGpt = Uri.EscapeDataString(ChatGptPrompt + "\n\n" + sourceText);
+        var encodedClaude = Uri.EscapeDataString(ClaudePrompt + "\n\n" + sourceText);
+        var gptUrlLength = "https://chat.openai.com/?prompt=".Length + encodedGpt.Length;
+        var claudeUrlLength = "https://claude.ai/new?q=".Length + encodedClaude.Length;
+        var isUrlTooLong = gptUrlLength > 6000 || claudeUrlLength > 6000;
+
+        var menu = FreewriteMenu.Create(ChatButton, _isDarkMode, minWidth: 120, maxWidth: 320);
+        if (isUrlTooLong)
+        {
+            menu.Items.Add(FreewriteMenu.CreateItem(
+                "Hey, your entry is quite long. You'll need to manually copy the prompt by clicking 'Copy Prompt' below and then paste it into AI of your choice (ex. ChatGPT). The prompt includes your entry as well.",
+                action: null,
+                _isDarkMode,
+                enabled: false));
+            menu.Items.Add(FreewriteMenu.CreateDivider(_isDarkMode));
+            menu.Items.Add(FreewriteMenu.CreateItem(
+                "Copy Prompt",
+                () => CopyPrompt(ChatGptPrompt, sourceText),
+                _isDarkMode));
+        }
+        else if (!_isVideoEntryVisible && EditorTextBox.Text.TrimStart().StartsWith("Hi. Welcome to Freewrite", StringComparison.OrdinalIgnoreCase))
         {
             menu.Items.Add(FreewriteMenu.CreateItem(
                 "Yo. Sorry, you can't chat with the guide lol. Please write your own entry.",
@@ -906,7 +1621,6 @@ public partial class MainWindow : Window
         if ((baseUrl + encoded).Length > 6000)
         {
             CopyPrompt(prompt, sourceText);
-            MessageBox.Show(this, "Prompt was too long for URL launch, so it was copied instead.", "Freewrite");
             return;
         }
 
@@ -1024,6 +1738,15 @@ public partial class MainWindow : Window
         ApplyTheme();
     }
 
+    private void AttachHistoryContextMenu(Border border, HumanEntry entry)
+    {
+        var menu = FreewriteMenu.Create(border, _isDarkMode, minWidth: 140, maxWidth: 180);
+        menu.Items.Add(FreewriteMenu.CreateItem("Export", () => ExportEntry(entry), _isDarkMode));
+        menu.Items.Add(FreewriteMenu.CreateDivider(_isDarkMode));
+        menu.Items.Add(FreewriteMenu.CreateItem("Delete", () => DeleteEntry(entry), _isDarkMode));
+        border.ContextMenu = menu;
+    }
+
     private void History_Click(object sender, RoutedEventArgs e)
     {
         var show = Sidebar.Visibility != Visibility.Visible;
@@ -1070,7 +1793,26 @@ public partial class MainWindow : Window
         _settings.StorageFolder = dialog.FolderName;
         _settings.Save();
         UpdateFolderPath();
-        LoadExistingEntries();
+        ReloadEntriesAsync();
+    }
+
+    private async void ReloadEntriesAsync()
+    {
+        EditorTextBox.IsEnabled = false;
+        try
+        {
+            _entries = await Task.Run(() => _store.LoadEntries().ToList());
+            ApplyStartupEntrySelection();
+            RenderHistory();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not load entries.\n\n{ex.Message}", "Freewrite");
+        }
+        finally
+        {
+            EditorTextBox.IsEnabled = true;
+        }
     }
 
     private void UpdateFolderPath()
@@ -1104,8 +1846,14 @@ public partial class MainWindow : Window
 
     private void VideoPlayer_MediaEnded(object sender, RoutedEventArgs e)
     {
-        VideoPlayer.Position = TimeSpan.Zero;
-        VideoPlayer.Play();
+        if (_isVideoEntryVisible)
+        {
+            VideoPlayer.Position = TimeSpan.Zero;
+            VideoPlayer.Play();
+            return;
+        }
+
+        HideVideo();
     }
 
     private void VideoPlayer_MediaFailed(object sender, ExceptionRoutedEventArgs e)
