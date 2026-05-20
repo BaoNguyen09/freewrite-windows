@@ -97,47 +97,65 @@
                   Background="Transparent"
                   MouseEnter="BottomNav_MouseEnter"
                   MouseLeave="BottomNav_MouseLeave">
-                <ScrollViewer HorizontalScrollBarVisibility="Hidden"
-                              VerticalScrollBarVisibility="Disabled"
-                              Padding="24,0">
-                    <StackPanel x:Name="BottomNavItems"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center">
-                        <Button x:Name="CopyTranscriptButton" Content="Copy Transcript" Style="{StaticResource PlainButton}" Click="CopyTranscript_Click" Visibility="Collapsed" />
-                        <TextBlock x:Name="VideoControlsSeparatorA" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" Visibility="Collapsed" />
-                        <Button x:Name="VideoPlayButton" Content="Pause" Style="{StaticResource PlainButton}" Click="VideoPlay_Click" Visibility="Collapsed" />
-                        <TextBlock x:Name="VideoControlsSeparatorB" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" Visibility="Collapsed" />
-                        <Button x:Name="VideoMuteButton" Content="Unmute" Style="{StaticResource PlainButton}" Click="VideoMute_Click" Visibility="Collapsed" />
-                        <TextBlock x:Name="VideoControlsSeparatorC" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" Visibility="Collapsed" />
-                        <Button x:Name="FontSizeButton" Content="18px" Style="{StaticResource PlainButton}" Click="FontSize_Click" />
-                        <TextBlock x:Name="FontSep1" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="LatoButton" Content="Lato" Style="{StaticResource PlainButton}" Click="Lato_Click" />
-                        <TextBlock x:Name="FontSep2" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="ArialButton" Content="Arial" Style="{StaticResource PlainButton}" Click="Arial_Click" />
-                        <TextBlock x:Name="FontSep3" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="SystemFontButton" Content="System" Style="{StaticResource PlainButton}" Click="SystemFont_Click" />
-                        <TextBlock x:Name="FontSep4" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="SerifButton" Content="Serif" Style="{StaticResource PlainButton}" Click="Serif_Click" />
-                        <TextBlock x:Name="FontSep5" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="RandomFontButton" Content="Random" Style="{StaticResource PlainButton}" Click="RandomFont_Click" />
-                        <TextBlock x:Name="FontSep6" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="TimerButton" Content="15:00" Style="{StaticResource PlainButton}" Click="Timer_Click" MouseDoubleClick="Timer_DoubleClick" MouseWheel="Timer_MouseWheel" />
-                        <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="VideoButton" Content="Video" Style="{StaticResource PlainButton}" Click="Video_Click" />
-                        <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="ChatButton" Content="Chat" Style="{StaticResource PlainButton}" Click="Chat_Click" />
-                        <TextBlock x:Name="BackspaceSeparator" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="BackspaceButton" Content="Backspace is On" Style="{StaticResource PlainButton}" Click="Backspace_Click" />
-                        <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="FullscreenButton" Content="Fullscreen" Style="{StaticResource PlainButton}" Click="Fullscreen_Click" />
-                        <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button Content="New Entry" Style="{StaticResource PlainButton}" Click="NewEntry_Click" />
-                        <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="ThemeButton" Content="Dark" Style="{StaticResource PlainButton}" Click="Theme_Click" />
-                        <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button x:Name="HistoryButton" Content="History" Style="{StaticResource PlainButton}" Click="History_Click" />
-                    </StackPanel>
-                </ScrollViewer>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ScrollViewer Grid.Column="0"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  Padding="18,0,8,0">
+                        <StackPanel x:Name="BottomNavItems"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <Button x:Name="CopyTranscriptButton" Content="Copy Transcript" Style="{StaticResource PlainButton}" Click="CopyTranscript_Click" Visibility="Collapsed" />
+                            <TextBlock x:Name="VideoControlsSeparatorA" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <Button x:Name="VideoPlayButton" Content="Pause" Style="{StaticResource PlainButton}" Click="VideoPlay_Click" Visibility="Collapsed" />
+                            <TextBlock x:Name="VideoControlsSeparatorB" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <Button x:Name="VideoMuteButton" Content="Unmute" Style="{StaticResource PlainButton}" Click="VideoMute_Click" Visibility="Collapsed" />
+                            <TextBlock x:Name="VideoControlsSeparatorC" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <Button x:Name="FontSizeButton" Content="18px" Style="{StaticResource PlainButton}" Click="FontSize_Click" />
+                            <TextBlock x:Name="FontSep1" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="LatoButton" Content="Lato" Style="{StaticResource PlainButton}" Click="Lato_Click" />
+                            <TextBlock x:Name="FontSep2" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="ArialButton" Content="Arial" Style="{StaticResource PlainButton}" Click="Arial_Click" />
+                            <TextBlock x:Name="FontSep3" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="SystemFontButton" Content="System" Style="{StaticResource PlainButton}" Click="SystemFont_Click" />
+                            <TextBlock x:Name="FontSep4" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="SerifButton" Content="Serif" Style="{StaticResource PlainButton}" Click="Serif_Click" />
+                            <TextBlock x:Name="FontSep5" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="RandomFontButton" Content="Random" Style="{StaticResource PlainButton}" Click="RandomFont_Click" />
+                            <TextBlock x:Name="FontSep6" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <ScrollViewer Grid.Column="1"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  Padding="8,0,18,0">
+                        <StackPanel x:Name="BottomActionItems"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <Button x:Name="TimerButton" Content="15:00" Style="{StaticResource PlainButton}" Click="Timer_Click" MouseDoubleClick="Timer_DoubleClick" MouseWheel="Timer_MouseWheel" />
+                            <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="VideoButton" Content="Video" Style="{StaticResource PlainButton}" Click="Video_Click" />
+                            <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="ChatButton" Content="Chat" Style="{StaticResource PlainButton}" Click="Chat_Click" />
+                            <TextBlock x:Name="BackspaceSeparator" Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="BackspaceButton" Content="Backspace is On" Style="{StaticResource PlainButton}" Click="Backspace_Click" />
+                            <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="FullscreenButton" Content="Fullscreen" Style="{StaticResource PlainButton}" Click="Fullscreen_Click" />
+                            <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button Content="New Entry" Style="{StaticResource PlainButton}" Click="NewEntry_Click" />
+                            <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="ThemeButton" Content="Dark Mode" Style="{StaticResource PlainButton}" Click="Theme_Click" />
+                            <TextBlock Text=" &#8226; " Foreground="#999999" VerticalAlignment="Center" />
+                            <Button x:Name="HistoryButton" Content="History" Style="{StaticResource PlainButton}" Click="History_Click" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
             </Grid>
         </Grid>
 
@@ -149,24 +167,92 @@
                 Visibility="Collapsed">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="72" />
+                    <RowDefinition Height="64" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Button Style="{StaticResource PlainButton}"
-                        HorizontalContentAlignment="Stretch"
-                        Click="OpenFolder_Click">
-                    <StackPanel Margin="16,12">
-                        <TextBlock Text="History" FontSize="13" Foreground="#555555" />
-                        <TextBlock x:Name="FolderPathText" FontSize="10" Foreground="#999999" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                </Button>
+                <Grid Margin="14,12,10,8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock x:Name="SidebarTitleText"
+                               Text="Entries"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="#222222" />
+                    <Button x:Name="SidebarFolderButton"
+                            Grid.Column="1"
+                            Content="Folder"
+                            Style="{StaticResource PlainButton}"
+                            FontSize="12"
+                            Margin="0,0,12,0"
+                            Click="OpenFolder_Click" />
+                    <Button x:Name="CloseSidebarButton"
+                            Grid.Column="2"
+                            Content="x"
+                            Style="{StaticResource PlainButton}"
+                            FontSize="14"
+                            Padding="4,0"
+                            Click="CloseSidebar_Click" />
+                    <TextBlock x:Name="FolderPathText"
+                               Grid.Row="1"
+                               Grid.ColumnSpan="3"
+                               Margin="0,4,0,0"
+                               FontSize="10"
+                               Foreground="#999999"
+                               TextTrimming="CharacterEllipsis" />
+                </Grid>
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
                     <StackPanel x:Name="HistoryItems" />
                 </ScrollViewer>
             </Grid>
         </Border>
+
+        <Grid x:Name="DeleteOverlay"
+              Grid.ColumnSpan="2"
+              Background="#66000000"
+              Visibility="Collapsed">
+            <Border x:Name="DeleteDialog"
+                    Width="320"
+                    Padding="22,20"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="White">
+                <StackPanel>
+                    <TextBlock x:Name="DeleteDialogTitle"
+                               Text="Delete this entry?"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="#222222" />
+                    <TextBlock x:Name="DeleteDialogBody"
+                               Margin="0,8,0,20"
+                               Text="This removes the local entry file and any linked video assets."
+                               TextWrapping="Wrap"
+                               FontSize="12"
+                               Foreground="#777777" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="CancelDeleteButton"
+                                Content="Cancel"
+                                Style="{StaticResource PlainButton}"
+                                Margin="0,0,18,0"
+                                Click="CancelDelete_Click" />
+                        <Button x:Name="ConfirmDeleteButton"
+                                Content="Delete"
+                                Style="{StaticResource PlainButton}"
+                                FontWeight="SemiBold"
+                                Click="ConfirmDelete_Click" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
 

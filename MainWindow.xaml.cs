@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private bool _isFullscreen;
     private bool _isVideoEntryVisible;
     private bool _isVideoPaused;
+    private HumanEntry? _pendingDeleteEntry;
     private int _timeRemaining = 900;
     private string _selectedFont = "Lato";
     private string _currentRandomFont = string.Empty;
@@ -237,16 +238,14 @@ public partial class MainWindow : Window
         var isSelected = _selectedEntry?.Id == entry.Id;
         var border = new Border
         {
-            Background = isSelected ? new SolidColorBrush(_isDarkMode ? Color.FromRgb(26, 26, 26) : Color.FromRgb(245, 245, 245)) : Brushes.Transparent,
-            BorderBrush = new SolidColorBrush(_isDarkMode ? Color.FromRgb(32, 32, 32) : Color.FromRgb(238, 238, 238)),
-            BorderThickness = new Thickness(0, 0, 0, 1),
-            Padding = new Thickness(14, 10, 10, 10),
+            Background = isSelected
+                ? new SolidColorBrush(_isDarkMode ? Color.FromRgb(60, 60, 60) : Color.FromRgb(245, 245, 245))
+                : Brushes.Transparent,
+            BorderBrush = new SolidColorBrush(_isDarkMode ? Color.FromRgb(38, 38, 38) : Color.FromRgb(238, 238, 238)),
+            BorderThickness = _isDarkMode ? new Thickness(0) : new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(14, 10, 12, 10),
             Cursor = Cursors.Hand
         };
-
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var textPanel = new StackPanel { Orientation = Orientation.Vertical };
         if (entry.EntryType == EntryType.Video && entry.VideoFilename is not null)
@@ -267,52 +266,52 @@ public partial class MainWindow : Window
 
         textPanel.Children.Add(new TextBlock
         {
-            Text = string.IsNullOrWhiteSpace(entry.PreviewText) ? "Untitled" : entry.PreviewText,
-            Foreground = new SolidColorBrush(_isDarkMode ? Color.FromRgb(220, 220, 220) : Color.FromRgb(65, 65, 65)),
-            FontSize = 13,
+            Text = entry.Date,
+            Foreground = new SolidColorBrush(_isDarkMode ? Colors.White : Color.FromRgb(70, 70, 70)),
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold,
             TextTrimming = TextTrimming.CharacterEllipsis
         });
         textPanel.Children.Add(new TextBlock
         {
-            Text = entry.Date,
-            Foreground = new SolidColorBrush(_isDarkMode ? Color.FromRgb(140, 140, 140) : Color.FromRgb(150, 150, 150)),
+            Text = string.IsNullOrWhiteSpace(entry.PreviewText) ? "Untitled" : entry.PreviewText,
+            Foreground = new SolidColorBrush(_isDarkMode ? Color.FromRgb(218, 218, 218) : Color.FromRgb(65, 65, 65)),
             FontSize = 12,
-            Margin = new Thickness(0, 4, 0, 0)
+            Margin = new Thickness(0, 2, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis
         });
-        grid.Children.Add(textPanel);
 
-        var actionPanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
-        var exportButton = SmallActionButton("Export");
-        exportButton.Click += (_, e) =>
-        {
-            e.Handled = true;
-            ExportEntry(entry);
-        };
-        var deleteButton = SmallActionButton("Delete");
-        deleteButton.Click += (_, e) =>
-        {
-            e.Handled = true;
-            DeleteEntry(entry);
-        };
-        actionPanel.Children.Add(exportButton);
-        actionPanel.Children.Add(deleteButton);
-        Grid.SetColumn(actionPanel, 1);
-        grid.Children.Add(actionPanel);
-
-        border.Child = grid;
+        var menu = new ContextMenu();
+        menu.Items.Add(ChatMenuItem("Export", () => ExportEntry(entry)));
+        menu.Items.Add(ChatMenuItem("Delete", () => DeleteEntry(entry)));
+        border.ContextMenu = menu;
+        border.Child = textPanel;
         border.MouseLeftButtonUp += (_, _) => SelectEntry(entry);
         return border;
     }
 
-    private Button SmallActionButton(string text)
+    private void ConfirmDelete_Click(object sender, RoutedEventArgs e)
     {
-        return new Button
+        if (_pendingDeleteEntry is null)
         {
-            Content = text,
-            Style = (Style)FindResource("PlainButton"),
-            FontSize = 11,
-            Margin = new Thickness(4, 0, 0, 0)
-        };
+            HideDeleteConfirmation();
+            return;
+        }
+
+        var entry = _pendingDeleteEntry;
+        HideDeleteConfirmation();
+        DeleteEntryImmediately(entry);
+    }
+
+    private void CancelDelete_Click(object sender, RoutedEventArgs e)
+    {
+        HideDeleteConfirmation();
+    }
+
+    private void HideDeleteConfirmation()
+    {
+        _pendingDeleteEntry = null;
+        DeleteOverlay.Visibility = Visibility.Collapsed;
     }
 
     private void ExportEntry(HumanEntry entry)
@@ -333,11 +332,12 @@ public partial class MainWindow : Window
 
     private void DeleteEntry(HumanEntry entry)
     {
-        if (MessageBox.Show(this, "Delete this entry?", "Freewrite", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
-        {
-            return;
-        }
+        _pendingDeleteEntry = entry;
+        DeleteOverlay.Visibility = Visibility.Visible;
+    }
 
+    private void DeleteEntryImmediately(HumanEntry entry)
+    {
         _store.DeleteEntry(entry);
         _entries.RemoveAll(item => item.Id == entry.Id);
         if (_selectedEntry?.Id == entry.Id)
@@ -429,15 +429,28 @@ public partial class MainWindow : Window
         RootGrid.Background = bg;
         MainSurface.Background = bg;
         Sidebar.Background = bg;
+        Sidebar.BorderBrush = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(36, 36, 36))
+            : new SolidColorBrush(Color.FromRgb(238, 238, 238));
         EditorTextBox.Background = Brushes.Transparent;
         EditorTextBox.Foreground = fg;
         PlaceholderText.Foreground = _isDarkMode ? new SolidColorBrush(Color.FromRgb(70, 70, 70)) : new SolidColorBrush(Color.FromRgb(187, 187, 187));
-        ThemeButton.Content = _isDarkMode ? "Light" : "Dark";
+        ThemeButton.Content = _isDarkMode ? "Light Mode" : "Dark Mode";
+        SidebarTitleText.Foreground = fg;
+        FolderPathText.Foreground = soft;
+        DeleteDialog.Background = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(28, 28, 28))
+            : Brushes.White;
+        DeleteDialogTitle.Foreground = fg;
+        DeleteDialogBody.Foreground = soft;
 
         foreach (var button in FindVisualChildren<Button>(RootGrid))
         {
             button.Foreground = soft;
         }
+        ConfirmDeleteButton.Foreground = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(255, 132, 132))
+            : new SolidColorBrush(Color.FromRgb(150, 40, 40));
 
         _settings.ColorScheme = _isDarkMode ? "dark" : "light";
         _settings.Save();
@@ -818,8 +831,14 @@ public partial class MainWindow : Window
     {
         var show = Sidebar.Visibility != Visibility.Visible;
         Sidebar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        SidebarColumn.Width = show ? new GridLength(280) : new GridLength(0);
+        SidebarColumn.Width = show ? new GridLength(248) : new GridLength(0);
         RenderHistory();
+    }
+
+    private void CloseSidebar_Click(object sender, RoutedEventArgs e)
+    {
+        Sidebar.Visibility = Visibility.Collapsed;
+        SidebarColumn.Width = new GridLength(0);
     }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
@@ -830,7 +849,7 @@ public partial class MainWindow : Window
             Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"\"{_store.RootDirectory}\"", UseShellExecute = true });
         }));
         menu.Items.Add(ChatMenuItem("Choose Folder", ChooseFolder));
-        menu.PlacementTarget = Sidebar;
+        menu.PlacementTarget = SidebarFolderButton;
         menu.IsOpen = true;
     }
 
@@ -860,6 +879,8 @@ public partial class MainWindow : Window
     private void UpdateFolderPath()
     {
         FolderPathText.Text = _store.RootDirectory;
+        FolderPathText.ToolTip = _store.RootDirectory;
+        SidebarFolderButton.ToolTip = _store.RootDirectory;
     }
 
     private void BottomNav_MouseEnter(object sender, MouseEventArgs e) => FadeBottomNav(1);
