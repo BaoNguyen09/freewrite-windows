@@ -104,18 +104,23 @@
                                 Orientation="Horizontal"
                                 VerticalAlignment="Center">
                         <Button x:Name="CopyTranscriptButton" Content="Copy Transcript" Style="{StaticResource PlainButton}" Click="CopyTranscript_Click" Visibility="Collapsed" />
+                        <TextBlock x:Name="VideoControlsSeparatorA" Text=" • " Foreground="#999999" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <Button x:Name="VideoPlayButton" Content="Pause" Style="{StaticResource PlainButton}" Click="VideoPlay_Click" Visibility="Collapsed" />
+                        <TextBlock x:Name="VideoControlsSeparatorB" Text=" • " Foreground="#999999" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <Button x:Name="VideoMuteButton" Content="Unmute" Style="{StaticResource PlainButton}" Click="VideoMute_Click" Visibility="Collapsed" />
+                        <TextBlock x:Name="VideoControlsSeparatorC" Text=" • " Foreground="#999999" VerticalAlignment="Center" Visibility="Collapsed" />
                         <Button x:Name="FontSizeButton" Content="18px" Style="{StaticResource PlainButton}" Click="FontSize_Click" />
-                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button Content="Lato" Style="{StaticResource PlainButton}" Click="Lato_Click" />
-                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button Content="Arial" Style="{StaticResource PlainButton}" Click="Arial_Click" />
-                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button Content="System" Style="{StaticResource PlainButton}" Click="SystemFont_Click" />
-                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
-                        <Button Content="Serif" Style="{StaticResource PlainButton}" Click="Serif_Click" />
-                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <TextBlock x:Name="FontSep1" Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="LatoButton" Content="Lato" Style="{StaticResource PlainButton}" Click="Lato_Click" />
+                        <TextBlock x:Name="FontSep2" Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="ArialButton" Content="Arial" Style="{StaticResource PlainButton}" Click="Arial_Click" />
+                        <TextBlock x:Name="FontSep3" Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="SystemFontButton" Content="System" Style="{StaticResource PlainButton}" Click="SystemFont_Click" />
+                        <TextBlock x:Name="FontSep4" Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <Button x:Name="SerifButton" Content="Serif" Style="{StaticResource PlainButton}" Click="Serif_Click" />
+                        <TextBlock x:Name="FontSep5" Text=" • " Foreground="#999999" VerticalAlignment="Center" />
                         <Button x:Name="RandomFontButton" Content="Random" Style="{StaticResource PlainButton}" Click="RandomFont_Click" />
-                        <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
+                        <TextBlock x:Name="FontSep6" Text=" • " Foreground="#999999" VerticalAlignment="Center" />
                         <Button x:Name="TimerButton" Content="15:00" Style="{StaticResource PlainButton}" Click="Timer_Click" MouseDoubleClick="Timer_DoubleClick" MouseWheel="Timer_MouseWheel" />
                         <TextBlock Text=" • " Foreground="#999999" VerticalAlignment="Center" />
                         <Button x:Name="VideoButton" Content="Video" Style="{StaticResource PlainButton}" Click="Video_Click" />

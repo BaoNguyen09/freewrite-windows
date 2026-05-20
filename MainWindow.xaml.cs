@@ -39,6 +39,7 @@ public partial class MainWindow : Window
     private bool _isDarkMode;
     private bool _isFullscreen;
     private bool _isVideoEntryVisible;
+    private bool _isVideoPaused;
     private int _timeRemaining = 900;
     private string _selectedFont = "Lato";
     private string _currentRandomFont = string.Empty;
@@ -358,6 +359,8 @@ public partial class MainWindow : Window
         VideoPlayer.Source = new Uri(path);
         VideoPlayer.Volume = _settings.VideoIsMuted ? 0 : _settings.VideoVolume;
         VideoPlayer.Play();
+        _isVideoPaused = false;
+        UpdateVideoPlaybackControls();
     }
 
     private void HideVideo()
@@ -367,6 +370,8 @@ public partial class MainWindow : Window
         VideoPlayer.Source = null;
         VideoPlayer.Visibility = Visibility.Collapsed;
         EditorShell.Visibility = Visibility.Visible;
+        _isVideoPaused = false;
+        UpdateVideoPlaybackControls();
     }
 
     private void UpdateVideoAwareControls()
@@ -374,9 +379,27 @@ public partial class MainWindow : Window
         var hasTranscript = _selectedEntry?.VideoFilename is not null
             && _store.LoadTranscript(_selectedEntry.VideoFilename) is not null;
         CopyTranscriptButton.Visibility = _isVideoEntryVisible && hasTranscript ? Visibility.Visible : Visibility.Collapsed;
-        FontSizeButton.Visibility = _isVideoEntryVisible ? Visibility.Collapsed : Visibility.Visible;
+        VideoControlsSeparatorA.Visibility = _isVideoEntryVisible && hasTranscript ? Visibility.Visible : Visibility.Collapsed;
+        VideoPlayButton.Visibility = _isVideoEntryVisible ? Visibility.Visible : Visibility.Collapsed;
+        VideoControlsSeparatorB.Visibility = _isVideoEntryVisible ? Visibility.Visible : Visibility.Collapsed;
+        VideoMuteButton.Visibility = _isVideoEntryVisible ? Visibility.Visible : Visibility.Collapsed;
+        VideoControlsSeparatorC.Visibility = _isVideoEntryVisible ? Visibility.Visible : Visibility.Collapsed;
+        var fontVisibility = _isVideoEntryVisible ? Visibility.Collapsed : Visibility.Visible;
+        FontSizeButton.Visibility = fontVisibility;
+        FontSep1.Visibility = fontVisibility;
+        LatoButton.Visibility = fontVisibility;
+        FontSep2.Visibility = fontVisibility;
+        ArialButton.Visibility = fontVisibility;
+        FontSep3.Visibility = fontVisibility;
+        SystemFontButton.Visibility = fontVisibility;
+        FontSep4.Visibility = fontVisibility;
+        SerifButton.Visibility = fontVisibility;
+        FontSep5.Visibility = fontVisibility;
+        RandomFontButton.Visibility = fontVisibility;
+        FontSep6.Visibility = fontVisibility;
         BackspaceSeparator.Visibility = _isVideoEntryVisible ? Visibility.Collapsed : Visibility.Visible;
         BackspaceButton.Visibility = _isVideoEntryVisible ? Visibility.Collapsed : Visibility.Visible;
+        UpdateVideoPlaybackControls();
     }
 
     private void ApplyFont()
@@ -647,6 +670,51 @@ public partial class MainWindow : Window
         {
             Clipboard.SetText(transcript);
         }
+    }
+
+    private void VideoPlay_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_isVideoEntryVisible)
+        {
+            return;
+        }
+
+        if (_isVideoPaused)
+        {
+            VideoPlayer.Play();
+            _isVideoPaused = false;
+        }
+        else
+        {
+            VideoPlayer.Pause();
+            _isVideoPaused = true;
+        }
+
+        UpdateVideoPlaybackControls();
+    }
+
+    private void VideoMute_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.VideoIsMuted = !_settings.VideoIsMuted;
+        if (!_settings.VideoIsMuted && _settings.VideoVolume <= 0)
+        {
+            _settings.VideoVolume = 1.0;
+        }
+
+        VideoPlayer.Volume = _settings.VideoIsMuted ? 0 : _settings.VideoVolume;
+        _settings.Save();
+        UpdateVideoPlaybackControls();
+    }
+
+    private void UpdateVideoPlaybackControls()
+    {
+        if (VideoPlayButton is null || VideoMuteButton is null)
+        {
+            return;
+        }
+
+        VideoPlayButton.Content = _isVideoPaused ? "Play" : "Pause";
+        VideoMuteButton.Content = _settings.VideoIsMuted ? "Unmute" : "Mute";
     }
 
     private void Backspace_Click(object sender, RoutedEventArgs e)
