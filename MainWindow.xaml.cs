@@ -801,6 +801,7 @@ public partial class MainWindow : Window
         TalkElapsedText.Foreground = _isDarkMode
             ? new SolidColorBrush(Color.FromRgb(200, 200, 200))
             : new SolidColorBrush(Color.FromRgb(100, 100, 100));
+        TalkTranscribeStatus.Foreground = TalkElapsedText.Foreground;
         TalkWaveform.BarBrush = _isDarkMode
             ? new SolidColorBrush(Color.FromRgb(170, 170, 170))
             : new SolidColorBrush(Color.FromRgb(120, 120, 120));
@@ -1144,7 +1145,7 @@ public partial class MainWindow : Window
         {
             TalkRecordingBar.Visibility = Visibility.Collapsed;
             TalkWaveform.Visibility = Visibility.Visible;
-            TalkTranscribeSpinner.Visibility = Visibility.Collapsed;
+            TalkTranscribePanel.Visibility = Visibility.Collapsed;
         }
 
         if (!_isTranscribing)
@@ -1166,21 +1167,23 @@ public partial class MainWindow : Window
         _isTranscribing = true;
         TalkRecordingBar.Visibility = Visibility.Visible;
         TalkWaveform.Visibility = Visibility.Collapsed;
-        TalkTranscribeSpinner.Visibility = Visibility.Visible;
+        TalkTranscribePanel.Visibility = Visibility.Visible;
+        TalkTranscribeStatus.Text = statusText;
         TalkElapsedText.Text = statusText;
         CancelTalkButton.IsEnabled = false;
         FinishTalkButton.IsEnabled = false;
         TalkButton.IsEnabled = false;
-        TalkButton.Content = "…";
+        TalkButton.Content = "Transcribing…";
         RetryTranscribeButton.IsEnabled = false;
         RetryTranscribeButton.Content = "Transcribing…";
         RetryTranscribeSpinner.Visibility = Visibility.Visible;
+        PlayDictationButton.IsEnabled = false;
     }
 
     private void EndTranscriptionUi()
     {
         _isTranscribing = false;
-        TalkTranscribeSpinner.Visibility = Visibility.Collapsed;
+        TalkTranscribePanel.Visibility = Visibility.Collapsed;
         TalkWaveform.Visibility = Visibility.Visible;
         TalkRecordingBar.Visibility = Visibility.Collapsed;
         RetryTranscribeSpinner.Visibility = Visibility.Collapsed;
@@ -1189,6 +1192,7 @@ public partial class MainWindow : Window
         TalkButton.IsEnabled = true;
         TalkButton.Content = _talkButtonDefaultContent;
         TalkButton.Foreground = _talkButtonDefaultForeground ?? Brushes.Gray;
+        PlayDictationButton.IsEnabled = true;
     }
 
     private static string FormatTranscriptionStatus(string status)
@@ -1205,6 +1209,14 @@ public partial class MainWindow : Window
     {
         if (!await _transcriptionGate.WaitAsync(0))
         {
+            Dispatcher.Invoke(() =>
+            {
+                if (_isTranscribing)
+                {
+                    TalkTranscribeStatus.Text = "Transcription already running…";
+                    TalkElapsedText.Text = "Transcription already running…";
+                }
+            });
             return false;
         }
 
@@ -1214,7 +1226,11 @@ public partial class MainWindow : Window
             var transcript = await _transcription.TranscribeWavAsync(
                 audioPath,
                 new Progress<string>(status => Dispatcher.Invoke(() =>
-                    TalkElapsedText.Text = FormatTranscriptionStatus(status))));
+                {
+                    var formatted = FormatTranscriptionStatus(status);
+                    TalkTranscribeStatus.Text = formatted;
+                    TalkElapsedText.Text = formatted;
+                })));
 
             if (string.IsNullOrWhiteSpace(transcript))
             {
@@ -1334,16 +1350,20 @@ public partial class MainWindow : Window
 
     private async Task FinishTalkRecordingAsync()
     {
-        if (_selectedEntry is null || _dictation is null || !_isTalkRecording || _isTranscribing)
+        if (_isTranscribing)
+        {
+            return;
+        }
+
+        if (_selectedEntry is null || _dictation is null || !_isTalkRecording)
         {
             HideTalkOverlay();
             return;
         }
 
+        BeginTranscriptionUi("Saving audio…");
         _isTalkRecording = false;
         _recordingTimer.Stop();
-        CancelTalkButton.IsEnabled = false;
-        FinishTalkButton.IsEnabled = false;
 
         string? audioPath;
         try
@@ -1360,6 +1380,7 @@ public partial class MainWindow : Window
 
         if (audioPath is null || !File.Exists(audioPath))
         {
+            EndTranscriptionUi();
             MessageBox.Show(this, "No audio was captured. Check microphone permissions and try again.", "Freewrite");
             HideTalkOverlay();
             return;
@@ -1649,7 +1670,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        await RunTranscriptionAsync(audioPath, selectLatestClip: false);
+        var started = await RunTranscriptionAsync(audioPath, selectLatestClip: false);
+        if (!started)
+        {
+            MessageBox.Show(this, "Transcription is already running. Wait for it to finish.", "Freewrite");
+        }
     }
 
     private void RecordingTimer_Tick(object? sender, EventArgs e)

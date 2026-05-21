@@ -23,6 +23,15 @@
                       UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
     <Window.Resources>
+        <Style x:Key="FreewriteIndeterminateSpinner" TargetType="ProgressBar">
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="IsIndeterminate" Value="True" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="#B8B8B8" />
+            <Setter Property="Background" Value="#3A3A3A" />
+        </Style>
+
         <Style x:Key="PlainButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -162,7 +171,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0">
+            <Grid x:Name="WritingViewport" Grid.Row="0">
                 <MediaElement x:Name="VideoPlayer"
                               LoadedBehavior="Manual"
                               UnloadedBehavior="Stop"
@@ -180,7 +189,22 @@
                               MediaOpened="DictationPlayer_MediaOpened"
                               MediaEnded="DictationPlayer_MediaEnded" />
 
+                <TextBlock x:Name="PlaceholderText"
+                           Panel.ZIndex="2"
+                           Margin="0,40,0,72"
+                           Width="580"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextAlignment="Center"
+                           FontFamily="Lato"
+                           FontSize="18"
+                           Foreground="#BBBBBB"
+                           IsHitTestVisible="False"
+                           Text="Begin writing"
+                           Visibility="Collapsed" />
+
                 <Grid x:Name="EditorShell"
+                      Panel.ZIndex="1"
                       HorizontalAlignment="Center"
                       VerticalAlignment="Stretch"
                       Width="650"
@@ -256,11 +280,11 @@
                                         Orientation="Horizontal"
                                         Visibility="Collapsed">
                                 <ProgressBar x:Name="RetryTranscribeSpinner"
+                                             Style="{StaticResource FreewriteIndeterminateSpinner}"
                                              Width="14"
                                              Height="14"
                                              Margin="0,0,8,0"
                                              VerticalAlignment="Center"
-                                             IsIndeterminate="True"
                                              Visibility="Collapsed" />
                                 <Button x:Name="RetryTranscribeButton"
                                         Content="Transcribe again"
@@ -270,8 +294,8 @@
                         </Grid>
                     </Border>
 
-                    <Grid Grid.Row="1" VerticalAlignment="Stretch">
                     <TextBox x:Name="EditorTextBox"
+                             Grid.Row="1"
                              AcceptsReturn="True"
                              AcceptsTab="True"
                              Background="Transparent"
@@ -295,22 +319,6 @@
                             </Style>
                         </TextBox.Resources>
                     </TextBox>
-
-                    <Grid VerticalAlignment="Stretch"
-                          Background="Transparent"
-                          IsHitTestVisible="False">
-                        <TextBlock x:Name="PlaceholderText"
-                                   Margin="5,0,64,0"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   TextAlignment="Center"
-                                   FontFamily="Lato"
-                                   FontSize="18"
-                                   Foreground="#BBBBBB"
-                                   Text="Begin writing"
-                                   Visibility="Collapsed" />
-                    </Grid>
-                    </Grid>
                 </Grid>
             </Grid>
 
@@ -334,15 +342,20 @@
                                        Margin="0,0,12,0"
                                        HorizontalAlignment="Stretch"
                                        VerticalAlignment="Center" />
-                    <ProgressBar x:Name="TalkTranscribeSpinner"
-                                 Grid.Column="0"
-                                 Width="22"
-                                 Height="22"
-                                 Margin="0,0,12,0"
-                                 HorizontalAlignment="Left"
-                                 VerticalAlignment="Center"
-                                 IsIndeterminate="True"
-                                 Visibility="Collapsed" />
+                    <StackPanel x:Name="TalkTranscribePanel"
+                                Grid.Column="0"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Visibility="Collapsed">
+                        <ProgressBar x:Name="TalkTranscribeSpinner"
+                                     Style="{StaticResource FreewriteIndeterminateSpinner}"
+                                     Margin="0,0,10,0" />
+                        <TextBlock x:Name="TalkTranscribeStatus"
+                                   FontSize="13"
+                                   Foreground="#CCCCCC"
+                                   VerticalAlignment="Center"
+                                   Text="Transcribing…" />
+                    </StackPanel>
                     <TextBlock x:Name="TalkElapsedText"
                                Grid.Column="1"
                                Margin="0,0,12,0"
