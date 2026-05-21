@@ -13,11 +13,11 @@
         ResizeMode="CanResize"
         SnapsToDevicePixels="True"
         UseLayoutRounding="True"
-        Background="White"
+        Background="Transparent"
         PreviewKeyDown="Window_PreviewKeyDown">
     <shell:WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0"
-                      CornerRadius="0"
+                      CornerRadius="8"
                       GlassFrameThickness="0"
                       ResizeBorderThickness="6"
                       UseAeroCaptionButtons="False" />
@@ -140,6 +140,13 @@
         </Style>
     </Window.Resources>
 
+    <Border x:Name="WindowShell"
+            Background="White"
+            CornerRadius="8"
+            ClipToBounds="True"
+            SnapsToDevicePixels="True"
+            BorderThickness="1"
+            BorderBrush="#E6E6E6">
     <Grid x:Name="RootGrid" Background="White">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -566,5 +573,6 @@
             </Border>
         </Grid>
     </Grid>
+    </Border>
 </Window>
 

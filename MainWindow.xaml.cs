@@ -51,6 +51,7 @@ public partial class MainWindow : Window
     private bool _isVideoEntryVisible;
     private bool _isVideoPaused;
     private HumanEntry? _pendingDeleteEntry;
+    private Guid? _hoveredHistoryEntryId;
     private readonly LocalTranscriptionService _transcription = new();
     private AudioDictationService? _dictation;
     private TaskCompletionSource<bool>? _recordingStopCompletion;
@@ -213,6 +214,7 @@ public partial class MainWindow : Window
 
     private void SelectEntry(HumanEntry entry)
     {
+        _hoveredHistoryEntryId = null;
         StopDictationPlayback();
         SaveEntryTypography();
         SaveCurrentEntry();
@@ -473,14 +475,14 @@ public partial class MainWindow : Window
     private UIElement CreateHistoryRow(HumanEntry entry, bool includeThumbnails)
     {
         var isSelected = _selectedEntry?.Id == entry.Id;
+        var isHovered = _hoveredHistoryEntryId == entry.Id;
         var border = new Border
         {
-            Background = isSelected
-                ? new SolidColorBrush(_isDarkMode ? Color.FromRgb(60, 60, 60) : Color.FromRgb(245, 245, 245))
-                : Brushes.Transparent,
-            BorderBrush = new SolidColorBrush(_isDarkMode ? Color.FromRgb(38, 38, 38) : Color.FromRgb(238, 238, 238)),
-            BorderThickness = _isDarkMode ? new Thickness(0) : new Thickness(0, 0, 0, 1),
-            Padding = new Thickness(14, 10, 12, 10),
+            Background = GetHistoryRowBackground(isSelected, isHovered),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(4),
+            Margin = new Thickness(6, 2, 6, 2),
+            Padding = new Thickness(10, 8, 8, 8),
             Cursor = Cursors.Hand
         };
         border.MouseRightButtonUp += (_, e) =>
@@ -522,8 +524,8 @@ public partial class MainWindow : Window
         });
         textPanel.Children.Add(new TextBlock
         {
-            Text = string.IsNullOrWhiteSpace(entry.PreviewText) ? "Untitled" : entry.PreviewText,
-            Foreground = new SolidColorBrush(_isDarkMode ? Color.FromRgb(218, 218, 218) : Color.FromRgb(65, 65, 65)),
+            Text = string.IsNullOrWhiteSpace(entry.PreviewText) ? "Empty entry" : entry.PreviewText,
+            Foreground = new SolidColorBrush(_isDarkMode ? Color.FromRgb(170, 170, 170) : Color.FromRgb(110, 110, 110)),
             FontSize = 12,
             Margin = new Thickness(0, 2, 0, 0),
             TextTrimming = TextTrimming.CharacterEllipsis
@@ -531,38 +533,59 @@ public partial class MainWindow : Window
 
         grid.Children.Add(textPanel);
 
-        var actionPanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
-        var exportButton = SmallActionButton("Export");
-        exportButton.Click += (_, e) =>
+        var deleteButton = new Button
         {
-            e.Handled = true;
-            ExportEntry(entry);
+            Content = "✕",
+            Style = (Style)FindResource("PlainButton"),
+            FontSize = 12,
+            Padding = new Thickness(4, 0, 4, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Delete entry",
+            Visibility = isSelected || isHovered ? Visibility.Visible : Visibility.Collapsed
         };
-        var deleteButton = SmallActionButton("Delete");
         deleteButton.Click += (_, e) =>
         {
             e.Handled = true;
             DeleteEntry(entry);
         };
-        actionPanel.Children.Add(exportButton);
-        actionPanel.Children.Add(deleteButton);
-        Grid.SetColumn(actionPanel, 1);
-        grid.Children.Add(actionPanel);
+        Grid.SetColumn(deleteButton, 1);
+        grid.Children.Add(deleteButton);
 
         border.Child = grid;
         border.MouseLeftButtonUp += (_, _) => SelectEntry(entry);
+        border.MouseEnter += (_, _) =>
+        {
+            _hoveredHistoryEntryId = entry.Id;
+            border.Background = GetHistoryRowBackground(_selectedEntry?.Id == entry.Id, true);
+            deleteButton.Visibility = Visibility.Visible;
+        };
+        border.MouseLeave += (_, _) =>
+        {
+            if (_hoveredHistoryEntryId == entry.Id)
+            {
+                _hoveredHistoryEntryId = null;
+            }
+
+            var stillSelected = _selectedEntry?.Id == entry.Id;
+            border.Background = GetHistoryRowBackground(stillSelected, false);
+            deleteButton.Visibility = stillSelected ? Visibility.Visible : Visibility.Collapsed;
+        };
         return border;
     }
 
-    private Button SmallActionButton(string text)
+    private Brush GetHistoryRowBackground(bool isSelected, bool isHovered)
     {
-        return new Button
+        if (isSelected)
         {
-            Content = text,
-            Style = (Style)FindResource("PlainButton"),
-            FontSize = 11,
-            Margin = new Thickness(8, 0, 0, 0)
-        };
+            return new SolidColorBrush(_isDarkMode ? Color.FromRgb(62, 62, 62) : Color.FromRgb(245, 245, 245));
+        }
+
+        if (isHovered)
+        {
+            return new SolidColorBrush(_isDarkMode ? Color.FromRgb(50, 50, 50) : Color.FromRgb(248, 248, 248));
+        }
+
+        return Brushes.Transparent;
     }
 
     private void ConfirmDelete_Click(object sender, RoutedEventArgs e)
@@ -698,27 +721,39 @@ public partial class MainWindow : Window
 
     private void ApplyTheme()
     {
-        var bg = _isDarkMode ? Brushes.Black : Brushes.White;
-        var fg = _isDarkMode ? new SolidColorBrush(Color.FromRgb(230, 230, 230)) : new SolidColorBrush(Color.FromRgb(51, 51, 51));
-        var soft = _isDarkMode ? new SolidColorBrush(Color.FromRgb(128, 128, 128)) : new SolidColorBrush(Color.FromRgb(136, 136, 136));
+        var bg = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(35, 35, 35))
+            : Brushes.White;
+        var fg = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(230, 230, 230))
+            : new SolidColorBrush(Color.FromRgb(51, 51, 51));
+        var soft = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(140, 140, 140))
+            : new SolidColorBrush(Color.FromRgb(136, 136, 136));
 
-        Background = bg;
+        Background = Brushes.Transparent;
+        WindowShell.Background = bg;
+        WindowShell.BorderBrush = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(52, 52, 52))
+            : new SolidColorBrush(Color.FromRgb(230, 230, 230));
         RootGrid.Background = bg;
         MainSurface.Background = bg;
         Sidebar.Background = bg;
         Sidebar.BorderBrush = _isDarkMode
-            ? new SolidColorBrush(Color.FromRgb(36, 36, 36))
+            ? new SolidColorBrush(Color.FromRgb(48, 48, 48))
             : new SolidColorBrush(Color.FromRgb(238, 238, 238));
         EditorTextBox.Background = Brushes.Transparent;
         EditorTextBox.Foreground = fg;
         EditorTextBox.CaretBrush = _isDarkMode ? Brushes.White : new SolidColorBrush(Color.FromRgb(51, 51, 51));
         EditorTextBox.Cursor = _isDarkMode ? FreewriteCursors.LightIBeam : Cursors.IBeam;
-        PlaceholderText.Foreground = _isDarkMode ? new SolidColorBrush(Color.FromRgb(70, 70, 70)) : new SolidColorBrush(Color.FromRgb(187, 187, 187));
+        PlaceholderText.Foreground = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(100, 100, 100))
+            : new SolidColorBrush(Color.FromRgb(187, 187, 187));
         ThemeButton.Content = _isDarkMode ? "Light Mode" : "Dark Mode";
         SidebarTitleText.Foreground = fg;
         FolderPathText.Foreground = soft;
         DeleteDialog.Background = _isDarkMode
-            ? new SolidColorBrush(Color.FromRgb(28, 28, 28))
+            ? new SolidColorBrush(Color.FromRgb(42, 42, 42))
             : Brushes.White;
         DeleteDialogTitle.Foreground = fg;
         DeleteDialogBody.Foreground = soft;
@@ -727,7 +762,7 @@ public partial class MainWindow : Window
         RecordingPulseDot.Fill = RecordingStatusText.Foreground;
         VideoRecordElapsedText.Foreground = soft;
         TalkRecordingBar.Background = _isDarkMode
-            ? new SolidColorBrush(Color.FromRgb(28, 28, 28))
+            ? new SolidColorBrush(Color.FromRgb(42, 42, 42))
             : new SolidColorBrush(Color.FromRgb(245, 245, 245));
         TalkRecordingBar.BorderBrush = _isDarkMode
             ? new SolidColorBrush(Color.FromRgb(52, 52, 52))
