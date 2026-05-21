@@ -243,7 +243,14 @@ public sealed class FreewriteStore
         var path = EntryPath(entry);
         if (File.Exists(path))
         {
-            File.Delete(path);
+            try
+            {
+                File.Delete(path);
+            }
+            catch (IOException ex)
+            {
+                throw new IOException($"Could not delete entry file: {path}", ex);
+            }
         }
 
         var preferencesPath = PreferencesPath(entry);

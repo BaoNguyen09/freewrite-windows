@@ -191,8 +191,8 @@
 
                 <TextBlock x:Name="PlaceholderText"
                            Panel.ZIndex="2"
-                           Margin="0,40,0,72"
-                           Width="580"
+                           Margin="24,40,24,72"
+                           MaxWidth="650"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
                            TextAlignment="Center"
@@ -217,7 +217,7 @@
 
                     <Border x:Name="DictationAudioBar"
                             Grid.Row="0"
-                            Margin="5,0,64,10"
+                            Margin="5,0,12,10"
                             Padding="10,8"
                             CornerRadius="6"
                             BorderThickness="1"
@@ -305,7 +305,7 @@
                              Foreground="#333333"
                              HorizontalScrollBarVisibility="Disabled"
                              IsUndoEnabled="False"
-                             Padding="5,0,64,8"
+                             Padding="5,0,8,8"
                              SpellCheck.IsEnabled="False"
                              TextChanged="EditorTextBox_TextChanged"
                              TextWrapping="Wrap"
@@ -315,7 +315,7 @@
                         <TextBox.Resources>
                             <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource FreewriteScrollBar}" />
                             <Style TargetType="{x:Type ScrollViewer}">
-                                <Setter Property="Padding" Value="0,0,14,0" />
+                                <Setter Property="Padding" Value="0,0,8,0" />
                             </Style>
                         </TextBox.Resources>
                     </TextBox>

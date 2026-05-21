@@ -492,6 +492,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!_entries.Any(item => item.Id == _selectedEntry.Id))
+        {
+            return;
+        }
+
         _store.SaveEntry(_selectedEntry, EditorTextBox.Text);
         if (renderHistory)
         {
@@ -680,13 +685,24 @@ public partial class MainWindow : Window
 
     private void DeleteEntry(HumanEntry entry)
     {
+        _saveTimer.Stop();
         _pendingDeleteEntry = entry;
         DeleteOverlay.Visibility = Visibility.Visible;
     }
 
     private void DeleteEntryImmediately(HumanEntry entry)
     {
-        _store.DeleteEntry(entry);
+        _saveTimer.Stop();
+        try
+        {
+            _store.DeleteEntry(entry);
+        }
+        catch (IOException ex)
+        {
+            MessageBox.Show(this, ex.Message, "Freewrite");
+            return;
+        }
+
         _entries.RemoveAll(item => item.Id == entry.Id);
         if (_selectedEntry?.Id == entry.Id)
         {
