@@ -41,6 +41,12 @@ internal static class WindowFullscreen
     private static extern bool IsIconic(IntPtr hWnd);
 
     [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
     private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
     public static bool TryGetMonitorPixelBounds(Window window, out Rect pixelBounds)
@@ -192,6 +198,21 @@ internal static class WindowFullscreen
         var widthPx = Math.Max(200, (int)Math.Round(widthDip * GetDpiScale(window)));
         var heightPx = Math.Max(150, (int)Math.Round(heightDip * GetDpiScale(window)));
         SetWindowPos(hwnd, IntPtr.Zero, -32000, -32000, widthPx, heightPx, SwpNoActivate);
+    }
+
+    public static void BringToForeground(Window window)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            window.Activate();
+            return;
+        }
+
+        ShowWindow(hwnd, 9);
+        BringWindowToTop(hwnd);
+        SetForegroundWindow(hwnd);
+        window.Activate();
     }
 
     private static double GetDpiScale(Window window)

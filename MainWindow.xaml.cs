@@ -2178,9 +2178,14 @@ public partial class MainWindow : Window
 
         Show();
         Activate();
+        WindowFullscreen.BringToForeground(this);
         Topmost = true;
         Topmost = false;
-        Focus();
+        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+        {
+            WindowFullscreen.BringToForeground(this);
+            Focus();
+        });
     }
 
     private void ApplyPendingFullscreenRestore()
