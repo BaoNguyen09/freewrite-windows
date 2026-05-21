@@ -245,6 +245,11 @@ internal static class WindowFullscreen
         var hwnd = new WindowInteropHelper(window).Handle;
         if (hwnd != IntPtr.Zero && ShowWindow(hwnd, SwMinimize))
         {
+            if (window.WindowState != WindowState.Minimized)
+            {
+                window.WindowState = WindowState.Minimized;
+            }
+
             return;
         }
 

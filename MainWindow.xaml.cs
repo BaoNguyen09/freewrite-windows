@@ -86,6 +86,8 @@ public partial class MainWindow : Window
     private double _restoreHeight;
     private Rect? _restorePixelBounds;
     private bool _minimizingFromFullscreen;
+    private bool _wasMinimized;
+    private bool _applyBoundsOnNextRestore;
 
     private const string ChatGptPrompt = """
         below is my journal entry. wyt? talk through it with me like a friend. don't therpaize me and give me a whole breakdown, don't repeat my thoughts with headings. really take all of this, and tell me back stuff truly as if you're an old homie.
@@ -230,6 +232,14 @@ public partial class MainWindow : Window
         {
             FinalizeFullscreenExitWhileMinimized();
         }
+
+        var restoredFromMinimize = _wasMinimized && WindowState == WindowState.Normal;
+        if (restoredFromMinimize && _applyBoundsOnNextRestore)
+        {
+            ApplyRestoredWindowBounds();
+        }
+
+        _wasMinimized = WindowState == WindowState.Minimized;
     }
 
     private void NormalizeEditorChrome()
@@ -2115,7 +2125,6 @@ public partial class MainWindow : Window
 
         _minimizingFromFullscreen = true;
         WindowFullscreen.Minimize(this);
-        FinalizeFullscreenExitWhileMinimized();
     }
 
     private void FinalizeFullscreenExitWhileMinimized()
@@ -2128,14 +2137,29 @@ public partial class MainWindow : Window
 
         WindowStyle = _previousWindowStyle;
         ResizeMode = _previousResizeMode;
-        Left = _restoreLeft;
-        Top = _restoreTop;
-        Width = _restoreWidth;
-        Height = _restoreHeight;
         _restorePixelBounds = null;
         _isFullscreen = false;
         FullscreenButton.Content = "Fullscreen";
         _minimizingFromFullscreen = false;
+        _applyBoundsOnNextRestore = true;
+    }
+
+    private void ApplyRestoredWindowBounds()
+    {
+        if (_restorePixelBounds is { } pixelBounds)
+        {
+            WindowFullscreen.RestoreBounds(this, pixelBounds);
+            _restorePixelBounds = null;
+        }
+        else
+        {
+            Left = _restoreLeft;
+            Top = _restoreTop;
+            Width = _restoreWidth;
+            Height = _restoreHeight;
+        }
+
+        _applyBoundsOnNextRestore = false;
     }
 
     private void NewEntry_Click(object sender, RoutedEventArgs e) => CreateNewEntry();
