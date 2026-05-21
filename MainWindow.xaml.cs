@@ -75,6 +75,10 @@ public partial class MainWindow : Window
     private WindowState _previousWindowState;
     private WindowStyle _previousWindowStyle;
     private ResizeMode _previousResizeMode;
+    private double _restoreLeft;
+    private double _restoreTop;
+    private double _restoreWidth;
+    private double _restoreHeight;
 
     private const string ChatGptPrompt = """
         below is my journal entry. wyt? talk through it with me like a friend. don't therpaize me and give me a whole breakdown, don't repeat my thoughts with headings. really take all of this, and tell me back stuff truly as if you're an old homie.
@@ -2013,23 +2017,40 @@ public partial class MainWindow : Window
         _previousWindowState = WindowState;
         _previousWindowStyle = WindowStyle;
         _previousResizeMode = ResizeMode;
+        _restoreLeft = Left;
+        _restoreTop = Top;
+        _restoreWidth = Width;
+        _restoreHeight = Height;
+
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
-        WindowState = WindowState.Maximized;
+        WindowState = WindowState.Normal;
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => WindowFullscreen.ApplyToMonitor(this));
         _isFullscreen = true;
         FullscreenButton.Content = "Minimize";
     }
 
-    private void MinimizeFromFullscreen()
+    private void ExitFullscreenChrome()
     {
-        if (_isFullscreen)
+        if (!_isFullscreen)
         {
-            WindowStyle = _previousWindowStyle;
-            ResizeMode = _previousResizeMode;
-            _isFullscreen = false;
-            FullscreenButton.Content = "Fullscreen";
+            return;
         }
 
+        WindowStyle = _previousWindowStyle;
+        ResizeMode = _previousResizeMode;
+        Left = _restoreLeft;
+        Top = _restoreTop;
+        Width = _restoreWidth;
+        Height = _restoreHeight;
+        WindowState = _previousWindowState;
+        _isFullscreen = false;
+        FullscreenButton.Content = "Fullscreen";
+    }
+
+    private void MinimizeFromFullscreen()
+    {
+        ExitFullscreenChrome();
         WindowState = WindowState.Minimized;
     }
 
