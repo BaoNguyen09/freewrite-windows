@@ -9,6 +9,8 @@ internal static class WindowFullscreen
 {
     private const uint MonitorDefaultToNearest = 2;
     private const uint SwpShowWindow = 0x0040;
+    private const int SwHide = 0;
+    private const int SwShow = 5;
     private const int SwMinimize = 6;
     private const int WmSysCommand = 0x0112;
     private const int ScMinimize = 0xF020;
@@ -161,10 +163,6 @@ internal static class WindowFullscreen
         {
             window.WindowState = WindowState.Minimized;
         }
-        else if (window.WindowState != WindowState.Minimized)
-        {
-            window.WindowState = WindowState.Minimized;
-        }
 
         var minimized = IsMinimized(window);
         // #region agent log
@@ -179,9 +177,27 @@ internal static class WindowFullscreen
                 minimized,
             },
             "E",
-            "verify-4");
+            "verify-5");
         // #endregion
         return minimized;
+    }
+
+    public static void HideFromScreen(Window window)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd != IntPtr.Zero)
+        {
+            ShowWindow(hwnd, SwHide);
+        }
+    }
+
+    public static void ShowOnScreen(Window window)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd != IntPtr.Zero)
+        {
+            ShowWindow(hwnd, SwShow);
+        }
     }
 
     private static void ApplyBoundsInDips(Window window, Rect pixelBounds)

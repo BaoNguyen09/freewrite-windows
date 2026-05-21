@@ -241,10 +241,12 @@ public partial class MainWindow : Window
                 isMinimizedHwnd = WindowFullscreen.IsMinimized(this),
             },
             "E",
-            "verify-4");
+            "verify-5");
         // #endregion
 
-        var restoredFromMinimize = _wasMinimized && WindowState == WindowState.Normal;
+        var restoredFromMinimize = _wasMinimized
+            && WindowState == WindowState.Normal
+            && !WindowFullscreen.IsMinimized(this);
         if (restoredFromMinimize && _pendingFullscreenRestore)
         {
             ApplyPendingFullscreenRestore();
@@ -2134,28 +2136,42 @@ public partial class MainWindow : Window
             return;
         }
 
+        Opacity = 0;
+        _isFullscreen = false;
+        FullscreenButton.Content = "Fullscreen";
+        _pendingFullscreenRestore = true;
         _minimizingFromFullscreen = true;
+
         var minimized = WindowFullscreen.TryMinimize(this);
+        if (minimized)
+        {
+            WindowFullscreen.HideFromScreen(this);
+        }
+
         _minimizingFromFullscreen = false;
+        Opacity = 1;
 
         // #region agent log
         DebugSessionLog.Write(
             "MainWindow.xaml.cs:MinimizeFromFullscreen",
-            "after TryMinimize (no style change while minimized)",
-            new { minimized, windowState = WindowState.ToString() },
+            "minimize from fullscreen",
+            new
+            {
+                minimized,
+                windowState = WindowState.ToString(),
+                isMinimizedHwnd = WindowFullscreen.IsMinimized(this),
+                pendingFullscreenRestore = _pendingFullscreenRestore,
+            },
             "E",
-            "verify-4");
+            "verify-5");
         // #endregion
 
         if (!minimized)
         {
-            return;
+            _isFullscreen = true;
+            FullscreenButton.Content = "Minimize";
+            _pendingFullscreenRestore = false;
         }
-
-        // Logical fullscreen exit only — changing WindowStyle while iconic restores the window (see logs).
-        _isFullscreen = false;
-        FullscreenButton.Content = "Fullscreen";
-        _pendingFullscreenRestore = true;
     }
 
     private void ApplyPendingFullscreenRestore()
@@ -2166,9 +2182,10 @@ public partial class MainWindow : Window
             "restore chrome and bounds on taskbar restore",
             new { windowState = WindowState.ToString() },
             "E",
-            "verify-4");
+            "verify-5");
         // #endregion
 
+        WindowFullscreen.ShowOnScreen(this);
         WindowStyle = _previousWindowStyle;
         ResizeMode = _previousResizeMode;
         Left = _restoreLeft;
@@ -2177,6 +2194,7 @@ public partial class MainWindow : Window
         Height = _restoreHeight;
         _restorePixelBounds = null;
         _pendingFullscreenRestore = false;
+        Opacity = 1;
     }
 
     private void NewEntry_Click(object sender, RoutedEventArgs e) => CreateNewEntry();
