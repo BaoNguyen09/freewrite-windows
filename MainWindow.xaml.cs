@@ -228,6 +228,20 @@ public partial class MainWindow : Window
 
     private void MainWindow_StateChanged(object? sender, EventArgs e)
     {
+        // #region agent log
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:StateChanged",
+            "state changed",
+            new
+            {
+                windowState = WindowState.ToString(),
+                isFullscreen = _isFullscreen,
+                minimizingFromFullscreen = _minimizingFromFullscreen,
+                isMinimizedHwnd = WindowFullscreen.IsMinimized(this),
+            },
+            "E");
+        // #endregion
+
         if (WindowState == WindowState.Minimized && _minimizingFromFullscreen && _isFullscreen)
         {
             FinalizeFullscreenExitWhileMinimized();
@@ -2124,7 +2138,39 @@ public partial class MainWindow : Window
         }
 
         _minimizingFromFullscreen = true;
-        WindowFullscreen.Minimize(this);
+        var minimized = WindowFullscreen.TryMinimize(this);
+        // #region agent log
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:MinimizeFromFullscreen",
+            "after TryMinimize",
+            new { minimized, windowState = WindowState.ToString() },
+            "E");
+        // #endregion
+
+        Dispatcher.BeginInvoke(DispatcherPriority.Send, CompleteFullscreenMinimize);
+    }
+
+    private void CompleteFullscreenMinimize()
+    {
+        if (!_minimizingFromFullscreen)
+        {
+            return;
+        }
+
+        if (!WindowFullscreen.IsMinimized(this))
+        {
+            // #region agent log
+            DebugSessionLog.Write(
+                "MainWindow.xaml.cs:CompleteFullscreenMinimize",
+                "minimize failed - abort finalize",
+                new { windowState = WindowState.ToString() },
+                "E");
+            // #endregion
+            _minimizingFromFullscreen = false;
+            return;
+        }
+
+        FinalizeFullscreenExitWhileMinimized();
     }
 
     private void FinalizeFullscreenExitWhileMinimized()
@@ -2134,6 +2180,14 @@ public partial class MainWindow : Window
             _minimizingFromFullscreen = false;
             return;
         }
+
+        // #region agent log
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:FinalizeFullscreenExitWhileMinimized",
+            "finalizing chrome",
+            new { windowState = WindowState.ToString() },
+            "E");
+        // #endregion
 
         WindowStyle = _previousWindowStyle;
         ResizeMode = _previousResizeMode;
