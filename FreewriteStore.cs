@@ -145,7 +145,7 @@ public sealed class FreewriteStore
 
     public string ReadEntry(HumanEntry entry)
     {
-        return File.Exists(EntryPath(entry)) ? SafeReadAllText(EntryPath(entry)).TrimStart('\n', '\r') : string.Empty;
+        return File.Exists(EntryPath(entry)) ? SafeReadAllText(EntryPath(entry)) : string.Empty;
     }
 
     public void SaveEntry(HumanEntry entry, string text)

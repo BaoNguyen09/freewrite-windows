@@ -257,7 +257,15 @@ public partial class MainWindow : Window
         _isLoadingEntry = true;
         try
         {
-            EditorTextBox.Text = _entries.Count == 1 ? LoadDefaultGuide() : string.Empty;
+            if (_entries.Count == 1)
+            {
+                EditorTextBox.Text = LoadDefaultGuide();
+            }
+            else
+            {
+                EditorTextBox.Text = NewEntryLeadingSpacing;
+            }
+
             PlaceholderText.Text = _placeholderOptions[_random.Next(_placeholderOptions.Length)];
             _store.SaveNewEntry(entry, EditorTextBox.Text);
         }
@@ -271,6 +279,7 @@ public partial class MainWindow : Window
         UpdateDictationAudioBar();
         UpdatePlaceholder();
         RenderHistory();
+        EditorTextBox.CaretIndex = EditorTextBox.Text.Length;
         EditorTextBox.Focus();
     }
 
@@ -1248,6 +1257,7 @@ public partial class MainWindow : Window
     }
 
     private const string TranscriptTopSpacing = "\n\n";
+    private const string NewEntryLeadingSpacing = "\n\n\n";
 
     private void AppendTranscriptToEditor(string transcript)
     {

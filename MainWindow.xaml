@@ -159,7 +159,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="68" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0">
@@ -272,7 +272,7 @@
                              Foreground="#333333"
                              HorizontalScrollBarVisibility="Disabled"
                              IsUndoEnabled="False"
-                             Padding="5,0,64,68"
+                             Padding="5,0,64,8"
                              SpellCheck.IsEnabled="False"
                              TextChanged="EditorTextBox_TextChanged"
                              TextWrapping="Wrap"
@@ -288,7 +288,7 @@
                     </TextBox>
 
                     <TextBlock x:Name="PlaceholderText"
-                               Margin="5,0,64,0"
+                               Margin="5,54,64,0"
                                VerticalAlignment="Top"
                                FontFamily="Lato"
                                FontSize="18"
@@ -353,7 +353,8 @@
 
             <Grid x:Name="BottomNav"
                   Grid.Row="2"
-                  Height="68"
+                  Margin="0,4,0,10"
+                  VerticalAlignment="Bottom"
                   Background="Transparent"
                   MouseEnter="BottomNav_MouseEnter"
                   MouseLeave="BottomNav_MouseLeave">
