@@ -248,7 +248,7 @@ internal static class WindowFullscreen
                 insertAfter = "HWND_TOP",
                 foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(hwnd),
             },
-            "A");
+            "verify-2");
         // #endregion
     }
 

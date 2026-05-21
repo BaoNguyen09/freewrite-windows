@@ -86,6 +86,7 @@ public partial class MainWindow : Window
     private double _restoreHeight;
     private Rect? _restorePixelBounds;
     private bool _wasMinimized;
+    private bool _restoreForegroundPending;
 
     private const string ChatGptPrompt = """
         below is my journal entry. wyt? talk through it with me like a friend. don't therpaize me and give me a whole breakdown, don't repeat my thoughts with headings. really take all of this, and tell me back stuff truly as if you're an old homie.
@@ -151,6 +152,14 @@ public partial class MainWindow : Window
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         EditorSurface.EnsureDocument(EditorTextBox);
+        // #region agent log
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:Loaded",
+            "app loaded",
+            new { actualWidth = ActualWidth, build = "overlay-sidebar-v2" },
+            "F",
+            "verify-2");
+        // #endregion
         ApplyTheme();
         ApplyFont();
         UpdateEditorColumnLayout();
@@ -223,7 +232,7 @@ public partial class MainWindow : Window
         EditorShell.Width = width;
         EditorShell.MaxWidth = width;
         PlaceholderText.MaxWidth = Math.Max(EditorLayout.ColumnMinWidth, width - 48);
-        LogLayoutSnapshot("MainWindow.xaml.cs:UpdateEditorColumnLayout", "layout updated", "F", "post-fix");
+        LogLayoutSnapshot("MainWindow.xaml.cs:UpdateEditorColumnLayout", "layout updated", "F", "verify-2");
     }
 
     private void LogLayoutSnapshot(string location, string message, string hypothesisId, string runId = "pre-fix")
@@ -252,27 +261,17 @@ public partial class MainWindow : Window
     private void MainWindow_StateChanged(object? sender, EventArgs e)
     {
         var restoredFromMinimize = _wasMinimized && WindowState != WindowState.Minimized;
+        if (WindowState == WindowState.Minimized)
+        {
+            _restoreForegroundPending = true;
+        }
+
         _wasMinimized = WindowState == WindowState.Minimized;
 
         if (restoredFromMinimize)
         {
-            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
-            {
-                WindowZOrderDebug.BringToForeground(this);
-                // #region agent log
-                var hwnd = new WindowInteropHelper(this).Handle;
-                DebugSessionLog.Write(
-                    "MainWindow.xaml.cs:StateChanged",
-                    "restored from minimize - bring to foreground",
-                    new
-                    {
-                        windowState = WindowState.ToString(),
-                        foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(hwnd),
-                    },
-                    "B",
-                    "post-fix");
-                // #endregion
-            });
+            _restoreForegroundPending = true;
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => TryRestoreForeground("StateChanged"));
         }
 
         // #region agent log
@@ -291,12 +290,17 @@ public partial class MainWindow : Window
                 restoredFromMinimize,
             },
             "B",
-            "post-fix");
+            "verify-2");
         // #endregion
     }
 
     private void MainWindow_Activated(object? sender, EventArgs e)
     {
+        if (_restoreForegroundPending)
+        {
+            TryRestoreForeground("Activated");
+        }
+
         // #region agent log
         DebugSessionLog.Write(
             "MainWindow.xaml.cs:Activated",
@@ -306,8 +310,34 @@ public partial class MainWindow : Window
                 windowState = WindowState.ToString(),
                 isActive = IsActive,
                 isFullscreen = _isFullscreen,
+                restoreForegroundPending = _restoreForegroundPending,
             },
-            "C");
+            "C",
+            "verify-2");
+        // #endregion
+    }
+
+    private void TryRestoreForeground(string source)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        var foregroundBefore = WindowZOrderDebug.IsForegroundWindow(hwnd);
+        var success = WindowZOrderDebug.BringToForeground(this);
+        var foregroundAfter = WindowZOrderDebug.IsForegroundWindow(hwnd);
+        _restoreForegroundPending = !foregroundAfter;
+        // #region agent log
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:TryRestoreForeground",
+            "foreground restore attempt",
+            new
+            {
+                source,
+                success,
+                foregroundBefore,
+                foregroundAfter,
+                windowState = WindowState.ToString(),
+            },
+            "B",
+            "verify-2");
         // #endregion
     }
 
@@ -2225,19 +2255,19 @@ public partial class MainWindow : Window
     {
         var show = Sidebar.Visibility != Visibility.Visible;
         // #region agent log
-        LogLayoutSnapshot("MainWindow.xaml.cs:History_Click", "before sidebar toggle", "F", "post-fix");
+        LogLayoutSnapshot("MainWindow.xaml.cs:History_Click", "before sidebar toggle", "F", "verify-2");
         DebugSessionLog.Write(
             "MainWindow.xaml.cs:History_Click",
             "toggling sidebar",
             new { show },
             "F",
-            "post-fix");
+            "verify-2");
         // #endregion
         Sidebar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         UpdateEditorColumnLayout();
         RenderHistory();
         // #region agent log
-        LogLayoutSnapshot("MainWindow.xaml.cs:History_Click", "after sidebar toggle", "F", "post-fix");
+        LogLayoutSnapshot("MainWindow.xaml.cs:History_Click", "after sidebar toggle", "F", "verify-2");
         // #endregion
     }
 

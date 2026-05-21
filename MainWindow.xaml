@@ -475,6 +475,12 @@
                 BorderThickness="1,0,0,0"
                 Background="White"
                 Visibility="Collapsed">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="16"
+                                  ShadowDepth="0"
+                                  Opacity="0.35"
+                                  Color="#000000" />
+            </Border.Effect>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="64" />

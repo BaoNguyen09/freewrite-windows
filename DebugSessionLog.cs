@@ -6,7 +6,7 @@ namespace FreewriteWindows;
 internal static class DebugSessionLog
 {
     private const string SessionId = "f06a51";
-    private static readonly string LogPath = ResolveLogPath();
+    private static readonly string[] LogPaths = ResolveLogPaths();
 
     public static void Write(
         string location,
@@ -27,9 +27,20 @@ internal static class DebugSessionLog
                 data,
                 hypothesisId,
                 runId,
-                logPath = LogPath,
+                logPaths = LogPaths,
             });
-            File.AppendAllText(LogPath, payload + Environment.NewLine);
+            var line = payload + Environment.NewLine;
+            foreach (var path in LogPaths)
+            {
+                try
+                {
+                    File.AppendAllText(path, line);
+                }
+                catch
+                {
+                    // try next path
+                }
+            }
         }
         catch
         {
@@ -38,7 +49,7 @@ internal static class DebugSessionLog
         // #endregion
     }
 
-    private static string ResolveLogPath()
+    private static string[] ResolveLogPaths()
     {
         var workspaceLog = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -47,11 +58,7 @@ internal static class DebugSessionLog
             "projects",
             "freewrite_wd",
             "debug-f06a51.log");
-        if (Directory.Exists(Path.GetDirectoryName(workspaceLog)))
-        {
-            return workspaceLog;
-        }
-
-        return Path.Combine(AppContext.BaseDirectory, "debug-f06a51.log");
+        var distLog = Path.Combine(AppContext.BaseDirectory, "debug-f06a51.log");
+        return [workspaceLog, distLog];
     }
 }
