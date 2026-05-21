@@ -9,8 +9,8 @@ internal static class EditorLayout
     public const double ColumnMaxWidth = 880;
     public const double ColumnWidthRatio = 0.78;
     public const double TextPaddingLeft = 16;
-    public const double TextPaddingRight = 32;
-    public const double ScrollbarGutter = 14;
+    public const double TextPaddingRight = 48;
+    public const double ScrollbarGutter = 28;
 
     public static double LineHeightForFontSize(double fontSize) => fontSize * 1.5;
 

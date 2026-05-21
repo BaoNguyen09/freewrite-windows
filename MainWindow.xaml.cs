@@ -84,6 +84,7 @@ public partial class MainWindow : Window
     private double _restoreTop;
     private double _restoreWidth;
     private double _restoreHeight;
+    private Rect? _restorePixelBounds;
 
     private const string ChatGptPrompt = """
         below is my journal entry. wyt? talk through it with me like a friend. don't therpaize me and give me a whole breakdown, don't repeat my thoughts with headings. really take all of this, and tell me back stuff truly as if you're an old homie.
@@ -2054,6 +2055,11 @@ public partial class MainWindow : Window
         WindowState = WindowState.Normal;
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
         {
+            if (WindowFullscreen.TryGetWindowPixelBounds(this, out var pixelBounds))
+            {
+                _restorePixelBounds = pixelBounds;
+            }
+
             WindowFullscreen.ApplyToMonitor(this);
             UpdateEditorColumnLayout();
         });
@@ -2061,7 +2067,7 @@ public partial class MainWindow : Window
         FullscreenButton.Content = "Minimize";
     }
 
-    private void ExitFullscreenChrome()
+    private void ExitFullscreenChrome(bool minimizeAfterRestore = false)
     {
         if (!_isFullscreen)
         {
@@ -2070,19 +2076,37 @@ public partial class MainWindow : Window
 
         WindowStyle = _previousWindowStyle;
         ResizeMode = _previousResizeMode;
-        Left = _restoreLeft;
-        Top = _restoreTop;
-        Width = _restoreWidth;
-        Height = _restoreHeight;
-        WindowState = _previousWindowState;
+        WindowState = WindowState.Normal;
+
+        if (_restorePixelBounds is { } pixelBounds)
+        {
+            WindowFullscreen.RestoreBounds(this, pixelBounds);
+            _restorePixelBounds = null;
+        }
+        else
+        {
+            Left = _restoreLeft;
+            Top = _restoreTop;
+            Width = _restoreWidth;
+            Height = _restoreHeight;
+        }
+
         _isFullscreen = false;
         FullscreenButton.Content = "Fullscreen";
+
+        if (minimizeAfterRestore)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => WindowFullscreen.Minimize(this));
+        }
+        else
+        {
+            WindowState = _previousWindowState;
+        }
     }
 
     private void MinimizeFromFullscreen()
     {
-        ExitFullscreenChrome();
-        WindowState = WindowState.Minimized;
+        ExitFullscreenChrome(minimizeAfterRestore: true);
     }
 
     private void NewEntry_Click(object sender, RoutedEventArgs e) => CreateNewEntry();
