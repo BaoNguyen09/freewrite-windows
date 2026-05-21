@@ -87,7 +87,7 @@ public partial class MainWindow : Window
     private Rect? _restorePixelBounds;
     private bool _minimizingFromFullscreen;
     private bool _wasMinimized;
-    private bool _applyBoundsOnNextRestore;
+    private bool _pendingFullscreenRestore;
 
     private const string ChatGptPrompt = """
         below is my journal entry. wyt? talk through it with me like a friend. don't therpaize me and give me a whole breakdown, don't repeat my thoughts with headings. really take all of this, and tell me back stuff truly as if you're an old homie.
@@ -237,20 +237,17 @@ public partial class MainWindow : Window
                 windowState = WindowState.ToString(),
                 isFullscreen = _isFullscreen,
                 minimizingFromFullscreen = _minimizingFromFullscreen,
+                pendingFullscreenRestore = _pendingFullscreenRestore,
                 isMinimizedHwnd = WindowFullscreen.IsMinimized(this),
             },
-            "E");
+            "E",
+            "verify-4");
         // #endregion
 
-        if (WindowState == WindowState.Minimized && _minimizingFromFullscreen && _isFullscreen)
-        {
-            FinalizeFullscreenExitWhileMinimized();
-        }
-
         var restoredFromMinimize = _wasMinimized && WindowState == WindowState.Normal;
-        if (restoredFromMinimize && _applyBoundsOnNextRestore)
+        if (restoredFromMinimize && _pendingFullscreenRestore)
         {
-            ApplyRestoredWindowBounds();
+            ApplyPendingFullscreenRestore();
         }
 
         _wasMinimized = WindowState == WindowState.Minimized;
@@ -2139,81 +2136,47 @@ public partial class MainWindow : Window
 
         _minimizingFromFullscreen = true;
         var minimized = WindowFullscreen.TryMinimize(this);
+        _minimizingFromFullscreen = false;
+
         // #region agent log
         DebugSessionLog.Write(
             "MainWindow.xaml.cs:MinimizeFromFullscreen",
-            "after TryMinimize",
+            "after TryMinimize (no style change while minimized)",
             new { minimized, windowState = WindowState.ToString() },
-            "E");
+            "E",
+            "verify-4");
         // #endregion
 
-        Dispatcher.BeginInvoke(DispatcherPriority.Send, CompleteFullscreenMinimize);
+        if (!minimized)
+        {
+            return;
+        }
+
+        // Logical fullscreen exit only — changing WindowStyle while iconic restores the window (see logs).
+        _isFullscreen = false;
+        FullscreenButton.Content = "Fullscreen";
+        _pendingFullscreenRestore = true;
     }
 
-    private void CompleteFullscreenMinimize()
+    private void ApplyPendingFullscreenRestore()
     {
-        if (!_minimizingFromFullscreen)
-        {
-            return;
-        }
-
-        if (!WindowFullscreen.IsMinimized(this))
-        {
-            // #region agent log
-            DebugSessionLog.Write(
-                "MainWindow.xaml.cs:CompleteFullscreenMinimize",
-                "minimize failed - abort finalize",
-                new { windowState = WindowState.ToString() },
-                "E");
-            // #endregion
-            _minimizingFromFullscreen = false;
-            return;
-        }
-
-        FinalizeFullscreenExitWhileMinimized();
-    }
-
-    private void FinalizeFullscreenExitWhileMinimized()
-    {
-        if (!_isFullscreen)
-        {
-            _minimizingFromFullscreen = false;
-            return;
-        }
-
         // #region agent log
         DebugSessionLog.Write(
-            "MainWindow.xaml.cs:FinalizeFullscreenExitWhileMinimized",
-            "finalizing chrome",
+            "MainWindow.xaml.cs:ApplyPendingFullscreenRestore",
+            "restore chrome and bounds on taskbar restore",
             new { windowState = WindowState.ToString() },
-            "E");
+            "E",
+            "verify-4");
         // #endregion
 
         WindowStyle = _previousWindowStyle;
         ResizeMode = _previousResizeMode;
+        Left = _restoreLeft;
+        Top = _restoreTop;
+        Width = _restoreWidth;
+        Height = _restoreHeight;
         _restorePixelBounds = null;
-        _isFullscreen = false;
-        FullscreenButton.Content = "Fullscreen";
-        _minimizingFromFullscreen = false;
-        _applyBoundsOnNextRestore = true;
-    }
-
-    private void ApplyRestoredWindowBounds()
-    {
-        if (_restorePixelBounds is { } pixelBounds)
-        {
-            WindowFullscreen.RestoreBounds(this, pixelBounds);
-            _restorePixelBounds = null;
-        }
-        else
-        {
-            Left = _restoreLeft;
-            Top = _restoreTop;
-            Width = _restoreWidth;
-            Height = _restoreHeight;
-        }
-
-        _applyBoundsOnNextRestore = false;
+        _pendingFullscreenRestore = false;
     }
 
     private void NewEntry_Click(object sender, RoutedEventArgs e) => CreateNewEntry();

@@ -178,7 +178,8 @@ internal static class WindowFullscreen
                 windowState = window.WindowState.ToString(),
                 minimized,
             },
-            "E");
+            "E",
+            "verify-4");
         // #endregion
         return minimized;
     }
