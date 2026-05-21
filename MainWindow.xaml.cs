@@ -85,7 +85,6 @@ public partial class MainWindow : Window
     private double _restoreWidth;
     private double _restoreHeight;
     private Rect? _restorePixelBounds;
-    private bool _minimizingFromFullscreen;
     private bool _wasMinimized;
     private bool _pendingFullscreenRestore;
 
@@ -137,11 +136,7 @@ public partial class MainWindow : Window
         SizeChanged += (_, _) => UpdateEditorColumnLayout();
         StateChanged += MainWindow_StateChanged;
         SourceInitialized += (_, _) => BorderlessChrome.Apply(this);
-        Closing += (_, _) =>
-        {
-            SaveEntryTypography();
-            SaveCurrentEntry(renderHistory: false);
-        };
+        Closing += MainWindow_Closing;
         Closed += (_, _) =>
         {
             StopDictationPlayback();
@@ -236,12 +231,11 @@ public partial class MainWindow : Window
             {
                 windowState = WindowState.ToString(),
                 isFullscreen = _isFullscreen,
-                minimizingFromFullscreen = _minimizingFromFullscreen,
                 pendingFullscreenRestore = _pendingFullscreenRestore,
                 isMinimizedHwnd = WindowFullscreen.IsMinimized(this),
             },
             "E",
-            "verify-5");
+            "verify-6");
         // #endregion
 
         var restoredFromMinimize = _wasMinimized
@@ -2128,6 +2122,25 @@ public partial class MainWindow : Window
         WindowState = _previousWindowState;
     }
 
+    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        // #region agent log
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:Closing",
+            "main window closing",
+            new
+            {
+                windowState = WindowState.ToString(),
+                pendingFullscreenRestore = _pendingFullscreenRestore,
+            },
+            "E",
+            "verify-6");
+        // #endregion
+
+        SaveEntryTypography();
+        SaveCurrentEntry(renderHistory: false);
+    }
+
     private void MinimizeFromFullscreen()
     {
         if (!_isFullscreen)
@@ -2136,25 +2149,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        Opacity = 0;
         _isFullscreen = false;
         FullscreenButton.Content = "Fullscreen";
         _pendingFullscreenRestore = true;
-        _minimizingFromFullscreen = true;
 
         var minimized = WindowFullscreen.TryMinimize(this);
         if (minimized)
         {
-            WindowFullscreen.HideFromScreen(this);
+            WindowFullscreen.ParkMinimizedOffScreen(this, _restoreWidth, _restoreHeight);
         }
-
-        _minimizingFromFullscreen = false;
-        Opacity = 1;
 
         // #region agent log
         DebugSessionLog.Write(
             "MainWindow.xaml.cs:MinimizeFromFullscreen",
-            "minimize from fullscreen",
+            "minimize from fullscreen (no SW_HIDE)",
             new
             {
                 minimized,
@@ -2163,7 +2171,7 @@ public partial class MainWindow : Window
                 pendingFullscreenRestore = _pendingFullscreenRestore,
             },
             "E",
-            "verify-5");
+            "verify-6");
         // #endregion
 
         if (!minimized)
@@ -2182,10 +2190,9 @@ public partial class MainWindow : Window
             "restore chrome and bounds on taskbar restore",
             new { windowState = WindowState.ToString() },
             "E",
-            "verify-5");
+            "verify-6");
         // #endregion
 
-        WindowFullscreen.ShowOnScreen(this);
         WindowStyle = _previousWindowStyle;
         ResizeMode = _previousResizeMode;
         Left = _restoreLeft;
@@ -2194,7 +2201,6 @@ public partial class MainWindow : Window
         Height = _restoreHeight;
         _restorePixelBounds = null;
         _pendingFullscreenRestore = false;
-        Opacity = 1;
     }
 
     private void NewEntry_Click(object sender, RoutedEventArgs e) => CreateNewEntry();

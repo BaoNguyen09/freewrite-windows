@@ -9,8 +9,7 @@ internal static class WindowFullscreen
 {
     private const uint MonitorDefaultToNearest = 2;
     private const uint SwpShowWindow = 0x0040;
-    private const int SwHide = 0;
-    private const int SwShow = 5;
+    private const uint SwpNoActivate = 0x0010;
     private const int SwMinimize = 6;
     private const int WmSysCommand = 0x0112;
     private const int ScMinimize = 0xF020;
@@ -177,27 +176,33 @@ internal static class WindowFullscreen
                 minimized,
             },
             "E",
-            "verify-5");
+            "verify-6");
         // #endregion
         return minimized;
     }
 
-    public static void HideFromScreen(Window window)
+    public static void ParkMinimizedOffScreen(Window window, double widthDip, double heightDip)
     {
         var hwnd = new WindowInteropHelper(window).Handle;
-        if (hwnd != IntPtr.Zero)
+        if (hwnd == IntPtr.Zero || !IsIconic(hwnd))
         {
-            ShowWindow(hwnd, SwHide);
+            return;
         }
+
+        var widthPx = Math.Max(200, (int)Math.Round(widthDip * GetDpiScale(window)));
+        var heightPx = Math.Max(150, (int)Math.Round(heightDip * GetDpiScale(window)));
+        SetWindowPos(hwnd, IntPtr.Zero, -32000, -32000, widthPx, heightPx, SwpNoActivate);
     }
 
-    public static void ShowOnScreen(Window window)
+    private static double GetDpiScale(Window window)
     {
-        var hwnd = new WindowInteropHelper(window).Handle;
-        if (hwnd != IntPtr.Zero)
+        var source = PresentationSource.FromVisual(window);
+        if (source?.CompositionTarget is null)
         {
-            ShowWindow(hwnd, SwShow);
+            return 1;
         }
+
+        return source.CompositionTarget.TransformToDevice.M11;
     }
 
     private static void ApplyBoundsInDips(Window window, Rect pixelBounds)
