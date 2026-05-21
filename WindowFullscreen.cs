@@ -223,10 +223,9 @@ internal static class WindowFullscreen
     {
         var hwnd = new WindowInteropHelper(window).Handle;
         window.WindowState = WindowState.Normal;
-        var setPosOk = false;
         if (hwnd != IntPtr.Zero)
         {
-            setPosOk = SetWindowPos(
+            SetWindowPos(
                 hwnd,
                 HwndTop,
                 (int)pixelBounds.X,
@@ -237,19 +236,6 @@ internal static class WindowFullscreen
         }
 
         ApplyBoundsInDips(window, pixelBounds);
-        // #region agent log
-        DebugSessionLog.Write(
-            "WindowFullscreen.cs:RestoreBounds",
-            "restored window bounds",
-            new
-            {
-                hwnd = hwnd.ToInt64(),
-                setPosOk,
-                insertAfter = "HWND_TOP",
-                foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(hwnd),
-            },
-            "verify-2");
-        // #endregion
     }
 
 
@@ -257,21 +243,7 @@ internal static class WindowFullscreen
     public static void Minimize(Window window)
     {
         var hwnd = new WindowInteropHelper(window).Handle;
-        var showWindowOk = hwnd != IntPtr.Zero && ShowWindow(hwnd, SwMinimize);
-        // #region agent log
-        DebugSessionLog.Write(
-            "WindowFullscreen.cs:Minimize",
-            "minimize requested",
-            new
-            {
-                hwnd = hwnd.ToInt64(),
-                showWindowOk,
-                windowState = window.WindowState.ToString(),
-                foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(hwnd),
-            },
-            "D");
-        // #endregion
-        if (showWindowOk)
+        if (hwnd != IntPtr.Zero && ShowWindow(hwnd, SwMinimize))
         {
             return;
         }

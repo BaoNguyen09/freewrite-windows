@@ -85,7 +85,6 @@ public partial class MainWindow : Window
     private double _restoreWidth;
     private double _restoreHeight;
     private Rect? _restorePixelBounds;
-    private bool _wasMinimized;
     private bool _minimizingFromFullscreen;
 
     private const string ChatGptPrompt = """
@@ -135,7 +134,6 @@ public partial class MainWindow : Window
         Loaded += MainWindow_Loaded;
         SizeChanged += (_, _) => UpdateEditorColumnLayout();
         StateChanged += MainWindow_StateChanged;
-        Activated += MainWindow_Activated;
         SourceInitialized += (_, _) => BorderlessChrome.Apply(this);
         Closing += (_, _) =>
         {
@@ -152,14 +150,6 @@ public partial class MainWindow : Window
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         EditorSurface.EnsureDocument(EditorTextBox);
-        // #region agent log
-        DebugSessionLog.Write(
-            "MainWindow.xaml.cs:Loaded",
-            "app loaded",
-            new { actualWidth = ActualWidth, build = "overlay-sidebar-v2" },
-            "F",
-            "verify-2");
-        // #endregion
         ApplyTheme();
         ApplyFont();
         UpdateEditorColumnLayout();
@@ -232,77 +222,14 @@ public partial class MainWindow : Window
         EditorShell.Width = width;
         EditorShell.MaxWidth = width;
         PlaceholderText.MaxWidth = Math.Max(EditorLayout.ColumnMinWidth, width - 48);
-        LogLayoutSnapshot("MainWindow.xaml.cs:UpdateEditorColumnLayout", "layout updated", "F", "verify-2");
-    }
-
-    private void LogLayoutSnapshot(string location, string message, string hypothesisId, string runId = "pre-fix")
-    {
-        // #region agent log
-        DebugSessionLog.Write(
-            location,
-            message,
-            new
-            {
-                windowWidth = ActualWidth,
-                writingViewportWidth = WritingViewport.ActualWidth,
-                editorShellWidth = EditorShell.Width,
-                editorShellLeft = EditorShell.Margin.Left,
-                sidebarVisible = Sidebar.Visibility == Visibility.Visible,
-                sidebarOverlay = true,
-                windowState = WindowState.ToString(),
-                isActive = IsActive,
-                isFullscreen = _isFullscreen,
-            },
-            hypothesisId,
-            runId);
-        // #endregion
     }
 
     private void MainWindow_StateChanged(object? sender, EventArgs e)
     {
-        var restoredFromMinimize = _wasMinimized && WindowState != WindowState.Minimized;
-        _wasMinimized = WindowState == WindowState.Minimized;
-
-        if (WindowState == WindowState.Minimized && _minimizingFromFullscreen)
+        if (WindowState == WindowState.Minimized && _minimizingFromFullscreen && _isFullscreen)
         {
             FinalizeFullscreenExitWhileMinimized();
         }
-
-        // #region agent log
-        var selfHwnd = new WindowInteropHelper(this).Handle;
-        DebugSessionLog.Write(
-            "MainWindow.xaml.cs:StateChanged",
-            "window state changed",
-            new
-            {
-                windowState = WindowState.ToString(),
-                isActive = IsActive,
-                isFullscreen = _isFullscreen,
-                minimizingFromFullscreen = _minimizingFromFullscreen,
-                hwnd = selfHwnd.ToInt64(),
-                foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(selfHwnd),
-                restoredFromMinimize,
-            },
-            "E",
-            "verify-3");
-        // #endregion
-    }
-
-    private void MainWindow_Activated(object? sender, EventArgs e)
-    {
-        // #region agent log
-        DebugSessionLog.Write(
-            "MainWindow.xaml.cs:Activated",
-            "window activated",
-            new
-            {
-                windowState = WindowState.ToString(),
-                isActive = IsActive,
-                isFullscreen = _isFullscreen,
-            },
-            "C",
-            "verify-3");
-        // #endregion
     }
 
     private void NormalizeEditorChrome()
@@ -2187,21 +2114,8 @@ public partial class MainWindow : Window
         }
 
         _minimizingFromFullscreen = true;
-        // #region agent log
-        var hwnd = new WindowInteropHelper(this).Handle;
-        DebugSessionLog.Write(
-            "MainWindow.xaml.cs:MinimizeFromFullscreen",
-            "minimize while fullscreen (defer resize until minimized)",
-            new
-            {
-                hwnd = hwnd.ToInt64(),
-                foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(hwnd),
-                isFullscreen = _isFullscreen,
-            },
-            "E",
-            "verify-3");
-        // #endregion
         WindowFullscreen.Minimize(this);
+        FinalizeFullscreenExitWhileMinimized();
     }
 
     private void FinalizeFullscreenExitWhileMinimized()
@@ -2212,31 +2126,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        // #region agent log
-        DebugSessionLog.Write(
-            "MainWindow.xaml.cs:FinalizeFullscreenExitWhileMinimized",
-            "exit fullscreen chrome while window is minimized",
-            new { windowState = WindowState.ToString() },
-            "E",
-            "verify-3");
-        // #endregion
-
         WindowStyle = _previousWindowStyle;
         ResizeMode = _previousResizeMode;
-
-        if (_restorePixelBounds is { } pixelBounds)
-        {
-            WindowFullscreen.RestoreBounds(this, pixelBounds);
-            _restorePixelBounds = null;
-        }
-        else
-        {
-            Left = _restoreLeft;
-            Top = _restoreTop;
-            Width = _restoreWidth;
-            Height = _restoreHeight;
-        }
-
+        Left = _restoreLeft;
+        Top = _restoreTop;
+        Width = _restoreWidth;
+        Height = _restoreHeight;
+        _restorePixelBounds = null;
         _isFullscreen = false;
         FullscreenButton.Content = "Fullscreen";
         _minimizingFromFullscreen = false;
@@ -2262,21 +2158,9 @@ public partial class MainWindow : Window
     private void History_Click(object sender, RoutedEventArgs e)
     {
         var show = Sidebar.Visibility != Visibility.Visible;
-        // #region agent log
-        LogLayoutSnapshot("MainWindow.xaml.cs:History_Click", "before sidebar toggle", "F", "verify-2");
-        DebugSessionLog.Write(
-            "MainWindow.xaml.cs:History_Click",
-            "toggling sidebar",
-            new { show },
-            "F",
-            "verify-2");
-        // #endregion
         Sidebar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         UpdateEditorColumnLayout();
         RenderHistory();
-        // #region agent log
-        LogLayoutSnapshot("MainWindow.xaml.cs:History_Click", "after sidebar toggle", "F", "verify-2");
-        // #endregion
     }
 
     private void CloseSidebar_Click(object sender, RoutedEventArgs e)
