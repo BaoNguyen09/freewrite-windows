@@ -21,6 +21,11 @@ namespace FreewriteWindows;
 
 public partial class MainWindow : Window
 {
+    private string EditorText
+    {
+        get => EditorSurface.GetText(EditorTextBox);
+        set => EditorSurface.SetText(EditorTextBox, value);
+    }
     private readonly AppSettings _settings;
     private readonly DispatcherTimer _focusTimer;
     private readonly DispatcherTimer _saveTimer;
@@ -125,6 +130,7 @@ public partial class MainWindow : Window
         _dictationPlaybackTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _dictationPlaybackTimer.Tick += DictationPlaybackTimer_Tick;
         Loaded += MainWindow_Loaded;
+        SizeChanged += (_, _) => UpdateEditorColumnLayout();
         SourceInitialized += (_, _) => BorderlessChrome.Apply(this);
         Closing += (_, _) =>
         {
@@ -140,8 +146,10 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        EditorSurface.EnsureDocument(EditorTextBox);
         ApplyTheme();
         ApplyFont();
+        UpdateEditorColumnLayout();
         NormalizeEditorChrome();
         _talkButtonDefaultContent = TalkButton.Content?.ToString() ?? "Talk";
         _talkButtonDefaultForeground = TalkButton.Foreground;
@@ -204,15 +212,26 @@ public partial class MainWindow : Window
         }
     }
 
+    private void UpdateEditorColumnLayout()
+    {
+        var sidebarWidth = Sidebar.Visibility == Visibility.Visible ? SidebarColumn.Width.Value : 0;
+        var fallbackWidth = Math.Max(ActualWidth - sidebarWidth, EditorLayout.ColumnMinWidth);
+        var width = EditorLayout.ResolveColumnWidth(WritingViewport.ActualWidth, fallbackWidth);
+        EditorShell.Width = width;
+        EditorShell.MaxWidth = width;
+        PlaceholderText.MaxWidth = Math.Max(EditorLayout.ColumnMinWidth, width - 48);
+    }
+
     private void NormalizeEditorChrome()
     {
         EditorTextBox.BorderThickness = new Thickness(0);
+        EditorTextBox.Padding = new Thickness(
+            EditorLayout.TextPaddingLeft,
+            0,
+            EditorLayout.TextPaddingRight,
+            12);
         var scrollViewer = FindVisualChildren<ScrollViewer>(EditorTextBox).FirstOrDefault();
-        if (scrollViewer is not null)
-        {
-            scrollViewer.Padding = new Thickness(0, 0, 14, 0);
-            scrollViewer.Margin = new Thickness(0);
-        }
+        EditorLayout.ApplyScrollGutter(scrollViewer);
     }
 
     private static bool IsEntryFromToday(HumanEntry entry)
@@ -234,12 +253,12 @@ public partial class MainWindow : Window
             {
                 var videoPath = _store.ResolveVideoPath(entry.VideoFilename);
                 ShowVideo(videoPath);
-                EditorTextBox.Text = string.Empty;
+                EditorText = string.Empty;
             }
             else
             {
                 HideVideo();
-                EditorTextBox.Text = _store.ReadEntry(entry);
+                EditorText = _store.ReadEntry(entry);
             }
         }
         finally
@@ -271,15 +290,15 @@ public partial class MainWindow : Window
         {
             if (_entries.Count == 1)
             {
-                EditorTextBox.Text = LoadDefaultGuide();
+                EditorText = LoadDefaultGuide();
             }
             else
             {
-                EditorTextBox.Text = NewEntryLeadingSpacing;
+                EditorText = NewEntryLeadingSpacing;
             }
 
             PlaceholderText.Text = _placeholderOptions[_random.Next(_placeholderOptions.Length)];
-            _store.SaveNewEntry(entry, EditorTextBox.Text);
+            _store.SaveNewEntry(entry, EditorText);
         }
         finally
         {
@@ -296,11 +315,11 @@ public partial class MainWindow : Window
 
     private void PositionEditorCaretAtEnd()
     {
-        EditorTextBox.CaretIndex = EditorTextBox.Text.Length;
+        EditorSurface.MoveCaretToEnd(EditorTextBox);
         EditorTextBox.Focus();
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
         {
-            EditorTextBox.CaretIndex = EditorTextBox.Text.Length;
+            EditorSurface.MoveCaretToEnd(EditorTextBox);
             EditorTextBox.ScrollToEnd();
             var scrollViewer = FindVisualChildren<ScrollViewer>(EditorTextBox).FirstOrDefault();
             scrollViewer?.ScrollToEnd();
@@ -501,7 +520,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _store.SaveEntry(_selectedEntry, EditorTextBox.Text);
+        _store.SaveEntry(_selectedEntry, EditorText);
         if (renderHistory)
         {
             RenderHistory();
@@ -782,11 +801,14 @@ public partial class MainWindow : Window
             ? new FontFamily(new Uri("pack://application:,,,/"), "./Resources/fonts/#Lato")
             : new FontFamily(_selectedFont);
 
-        EditorTextBox.FontFamily = fontFamily;
         PlaceholderText.FontFamily = fontFamily;
-        EditorTextBox.FontSize = _currentFontSize;
         PlaceholderText.FontSize = _currentFontSize;
         FontSizeButton.Content = $"{(int)_currentFontSize}px";
+        EditorSurface.ApplyPlaceholderTypography(PlaceholderText, _currentFontSize);
+        var fg = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(230, 230, 230))
+            : new SolidColorBrush(Color.FromRgb(51, 51, 51));
+        EditorSurface.ApplyDocumentTypography(EditorTextBox, fontFamily, _currentFontSize, fg);
     }
 
     private void ApplyTheme()
@@ -814,6 +836,11 @@ public partial class MainWindow : Window
             : new SolidColorBrush(Color.FromRgb(238, 238, 238));
         EditorTextBox.Background = Brushes.Transparent;
         EditorTextBox.Foreground = fg;
+        if (EditorTextBox.Document is not null)
+        {
+            EditorTextBox.Document.Foreground = fg;
+        }
+
         EditorTextBox.CaretBrush = _isDarkMode ? Brushes.White : new SolidColorBrush(Color.FromRgb(51, 51, 51));
         EditorTextBox.Cursor = _isDarkMode ? FreewriteCursors.LightIBeam : Cursors.IBeam;
         PlaceholderText.Foreground = _isDarkMode
@@ -898,12 +925,12 @@ public partial class MainWindow : Window
     {
         if (!_editorHasNonWhitespaceContent)
         {
-            _editorHasNonWhitespaceContent = HasNonWhitespaceContent(EditorTextBox.Text);
+            _editorHasNonWhitespaceContent = HasNonWhitespaceContent(EditorText);
             UpdatePlaceholder();
         }
-        else if (EditorTextBox.Text.Length <= 32)
+        else if (EditorText.Length <= 32)
         {
-            _editorHasNonWhitespaceContent = HasNonWhitespaceContent(EditorTextBox.Text);
+            _editorHasNonWhitespaceContent = HasNonWhitespaceContent(EditorText);
             if (!_editorHasNonWhitespaceContent)
             {
                 UpdatePlaceholder();
@@ -912,7 +939,7 @@ public partial class MainWindow : Window
 
         if (!_isLoadingEntry && _selectedEntry?.EntryType == EntryType.Text)
         {
-            _selectedEntry.PreviewText = FreewriteStore.PreviewTextFromContent(EditorTextBox.Text, 30);
+            _selectedEntry.PreviewText = FreewriteStore.PreviewTextFromContent(EditorText, 30);
             QueueSaveCurrentEntry();
             UpdateSelectedHistoryPreview();
         }
@@ -920,7 +947,7 @@ public partial class MainWindow : Window
 
     private void SyncEditorWhitespaceState()
     {
-        _editorHasNonWhitespaceContent = HasNonWhitespaceContent(EditorTextBox.Text);
+        _editorHasNonWhitespaceContent = HasNonWhitespaceContent(EditorText);
         UpdatePlaceholder();
     }
 
@@ -1504,16 +1531,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(EditorTextBox.Text))
+        if (string.IsNullOrWhiteSpace(EditorText))
         {
-            EditorTextBox.Text = TranscriptTopSpacing + trimmed;
+            EditorText = TranscriptTopSpacing + trimmed;
         }
         else
         {
-            EditorTextBox.Text = EditorTextBox.Text.TrimEnd() + "\n\n" + trimmed;
+            EditorText = EditorText.TrimEnd() + "\n\n" + trimmed;
         }
 
-        EditorTextBox.CaretIndex = EditorTextBox.Text.Length;
+        EditorSurface.MoveCaretToEnd(EditorTextBox);
     }
 
     private void PlayDictation_Click(object sender, RoutedEventArgs e)
@@ -1814,7 +1841,7 @@ public partial class MainWindow : Window
     {
         var transcriptCandidate = Path.ChangeExtension(videoPath, ".md");
         var transcript = capturedTranscript ?? (File.Exists(transcriptCandidate) ? File.ReadAllText(transcriptCandidate) : null);
-        var replacement = _selectedEntry?.EntryType == EntryType.Text && string.IsNullOrWhiteSpace(EditorTextBox.Text)
+        var replacement = _selectedEntry?.EntryType == EntryType.Text && string.IsNullOrWhiteSpace(EditorText)
             ? _selectedEntry
             : null;
         var entry = _store.SaveImportedVideo(videoPath, transcript, replacement);
@@ -1870,7 +1897,7 @@ public partial class MainWindow : Window
                 () => CopyPrompt(ChatGptPrompt, sourceText),
                 _isDarkMode));
         }
-        else if (!_isVideoEntryVisible && EditorTextBox.Text.TrimStart().StartsWith("Hi. Welcome to Freewrite", StringComparison.OrdinalIgnoreCase))
+        else if (!_isVideoEntryVisible && EditorText.TrimStart().StartsWith("Hi. Welcome to Freewrite", StringComparison.OrdinalIgnoreCase))
         {
             menu.Items.Add(FreewriteMenu.CreateItem(
                 "Yo. Sorry, you can't chat with the guide lol. Please write your own entry.",
@@ -1932,7 +1959,7 @@ public partial class MainWindow : Window
             return _store.LoadTranscript(_selectedEntry.VideoFilename)?.Trim() ?? string.Empty;
         }
 
-        return EditorTextBox.Text.Trim();
+        return EditorText.Trim();
     }
 
     private void CopyTranscript_Click(object sender, RoutedEventArgs e)
@@ -2025,7 +2052,11 @@ public partial class MainWindow : Window
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         WindowState = WindowState.Normal;
-        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => WindowFullscreen.ApplyToMonitor(this));
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        {
+            WindowFullscreen.ApplyToMonitor(this);
+            UpdateEditorColumnLayout();
+        });
         _isFullscreen = true;
         FullscreenButton.Content = "Minimize";
     }
@@ -2076,6 +2107,7 @@ public partial class MainWindow : Window
         var show = Sidebar.Visibility != Visibility.Visible;
         Sidebar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         SidebarColumn.Width = show ? new GridLength(248) : new GridLength(0);
+        UpdateEditorColumnLayout();
         RenderHistory();
     }
 
@@ -2083,6 +2115,7 @@ public partial class MainWindow : Window
     {
         Sidebar.Visibility = Visibility.Collapsed;
         SidebarColumn.Width = new GridLength(0);
+        UpdateEditorColumnLayout();
     }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
