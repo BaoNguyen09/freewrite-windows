@@ -850,7 +850,7 @@ public partial class MainWindow : Window
             ? new SolidColorBrush(Color.FromRgb(140, 140, 140))
             : new SolidColorBrush(Color.FromRgb(136, 136, 136));
 
-        Background = Brushes.Transparent;
+        Background = bg;
         WindowShell.Background = bg;
         WindowShell.BorderBrush = _isDarkMode
             ? new SolidColorBrush(Color.FromRgb(52, 52, 52))
@@ -885,6 +885,7 @@ public partial class MainWindow : Window
         RecordingStatusText.Foreground = new SolidColorBrush(Color.FromRgb(232, 75, 75));
         RecordingPulseDot.Fill = RecordingStatusText.Foreground;
         VideoRecordElapsedText.Foreground = soft;
+        RecordingHelpText.Foreground = soft;
         TalkRecordingBar.Background = _isDarkMode
             ? new SolidColorBrush(Color.FromRgb(42, 42, 42))
             : new SolidColorBrush(Color.FromRgb(245, 245, 245));
@@ -1429,7 +1430,8 @@ public partial class MainWindow : Window
     private void ShowRecordingOverlay()
     {
         _recordingStartedAt = DateTime.Now;
-        RecordingStatusText.Text = "Recording";
+        RecordingStatusText.Text = "Recording video";
+        RecordingHelpText.Text = "Camera and microphone active";
         VideoRecordElapsedText.Text = "0:00";
         RecordOverlay.Visibility = Visibility.Visible;
         StartRecordingPulse();
@@ -2145,41 +2147,40 @@ public partial class MainWindow : Window
     {
         if (!_isFullscreen)
         {
-            WindowState = WindowState.Minimized;
+            RestoreWindowToFront();
             return;
         }
 
-        _isFullscreen = false;
-        FullscreenButton.Content = "Fullscreen";
-        _pendingFullscreenRestore = true;
-
-        var minimized = WindowFullscreen.TryMinimize(this);
-        if (minimized)
-        {
-            WindowFullscreen.ParkMinimizedOffScreen(this, _restoreWidth, _restoreHeight);
-        }
+        ExitFullscreenChrome();
+        _pendingFullscreenRestore = false;
+        RestoreWindowToFront();
 
         // #region agent log
         DebugSessionLog.Write(
             "MainWindow.xaml.cs:MinimizeFromFullscreen",
-            "minimize from fullscreen (no SW_HIDE)",
+            "restore from fullscreen and keep foreground",
             new
             {
-                minimized,
                 windowState = WindowState.ToString(),
-                isMinimizedHwnd = WindowFullscreen.IsMinimized(this),
                 pendingFullscreenRestore = _pendingFullscreenRestore,
             },
             "E",
             "verify-6");
         // #endregion
+    }
 
-        if (!minimized)
+    private void RestoreWindowToFront()
+    {
+        if (WindowState == WindowState.Minimized)
         {
-            _isFullscreen = true;
-            FullscreenButton.Content = "Minimize";
-            _pendingFullscreenRestore = false;
+            WindowState = WindowState.Normal;
         }
+
+        Show();
+        Activate();
+        Topmost = true;
+        Topmost = false;
+        Focus();
     }
 
     private void ApplyPendingFullscreenRestore()

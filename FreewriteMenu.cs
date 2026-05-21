@@ -18,12 +18,13 @@ internal static class FreewriteMenu
             Placement = PlacementMode.Top,
             MinWidth = minWidth,
             MaxWidth = maxWidth,
-            Padding = new Thickness(4),
+            Padding = new Thickness(0),
             Background = MenuBackground(isDarkMode),
             BorderBrush = MenuBorder(isDarkMode),
             BorderThickness = new Thickness(1),
             Foreground = MenuForeground(isDarkMode, enabled: true),
-            ItemContainerStyle = CreateMenuItemStyle(isDarkMode)
+            ItemContainerStyle = CreateMenuItemStyle(isDarkMode),
+            Template = CreateMenuTemplate(isDarkMode)
         };
     }
 
@@ -93,6 +94,25 @@ internal static class FreewriteMenu
         highlightTrigger.Setters.Add(new Setter(MenuItem.BackgroundProperty, new SolidColorBrush(hoverColor)));
         style.Triggers.Add(highlightTrigger);
         return style;
+    }
+
+    private static ControlTemplate CreateMenuTemplate(bool isDarkMode)
+    {
+        var border = new FrameworkElementFactory(typeof(Border));
+        border.SetValue(Border.BackgroundProperty, MenuBackground(isDarkMode));
+        border.SetValue(Border.BorderBrushProperty, MenuBorder(isDarkMode));
+        border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        border.SetValue(Border.SnapsToDevicePixelsProperty, true);
+
+        var presenter = new FrameworkElementFactory(typeof(ItemsPresenter));
+        presenter.SetValue(FrameworkElement.MarginProperty, new Thickness(4));
+        border.AppendChild(presenter);
+
+        return new ControlTemplate(typeof(ContextMenu))
+        {
+            VisualTree = border
+        };
     }
 
     private static Grid EmptyIcon() => new() { Width = 0, Height = 0, Visibility = Visibility.Collapsed };

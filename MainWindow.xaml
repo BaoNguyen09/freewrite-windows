@@ -114,11 +114,11 @@
 
         <Style x:Key="FreewriteScrollBar" TargetType="{x:Type ScrollBar}">
             <Setter Property="OverridesDefaultStyle" Value="True" />
-            <Setter Property="Width" Value="7" />
-            <Setter Property="MinWidth" Value="7" />
-            <Setter Property="Margin" Value="0,6,24,6" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Margin" Value="0,8,34,8" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="Opacity" Value="0.62" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ScrollBar}">
@@ -135,7 +135,7 @@
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="{x:Type Thumb}">
                                                 <Border Background="#8A8A8A"
-                                                        CornerRadius="3.5"
+                                                        CornerRadius="4"
                                                         Margin="0,2" />
                                             </ControlTemplate>
                                         </Thumb.Template>
@@ -298,7 +298,7 @@
                                  Foreground="#333333"
                                  HorizontalScrollBarVisibility="Disabled"
                                  IsUndoEnabled="False"
-                                 Padding="16,0,48,12"
+                                 Padding="16,0,76,12"
                                  SpellCheck.IsEnabled="False"
                                  TextChanged="EditorTextBox_TextChanged"
                                  VerticalAlignment="Stretch"
@@ -306,7 +306,7 @@
                         <RichTextBox.Resources>
                             <Style TargetType="{x:Type ScrollBar}" BasedOn="{StaticResource FreewriteScrollBar}" />
                             <Style TargetType="{x:Type ScrollViewer}">
-                                <Setter Property="Padding" Value="0,0,28,0" />
+                                <Setter Property="Padding" Value="0,0,44,0" />
                             </Style>
                         </RichTextBox.Resources>
                     </RichTextBox>
@@ -576,35 +576,40 @@
               Background="#66000000"
               Visibility="Collapsed">
             <Border x:Name="RecordDialog"
-                    Width="300"
+                    Width="340"
                     Padding="22,20"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Background="White"
                     CornerRadius="8">
                 <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <Ellipse x:Name="RecordingPulseDot"
-                                 Width="8"
-                                 Height="8"
-                                 Margin="0,0,8,0"
+                                 Width="10"
+                                 Height="10"
+                                 Margin="0,0,10,0"
                                  VerticalAlignment="Center"
                                  Fill="#E84B4B" />
                         <TextBlock x:Name="RecordingStatusText"
-                                   Text="Listening"
+                                   Text="Recording video"
                                    FontSize="14"
                                    FontWeight="SemiBold"
                                    Foreground="#E84B4B"
                                    VerticalAlignment="Center"
-                                   Margin="0,0,10,0" />
+                                   Margin="0,0,12,0" />
                         <TextBlock x:Name="VideoRecordElapsedText"
                                    Text="0:00"
                                    FontSize="24"
                                    Foreground="#777777"
                                    VerticalAlignment="Center" />
                     </StackPanel>
+                    <TextBlock x:Name="RecordingHelpText"
+                               Margin="20,0,0,18"
+                               Text="Camera and microphone active"
+                               FontSize="12"
+                               Foreground="#999999" />
                     <Button x:Name="StopRecordingButton"
-                            Content="Done"
+                            Content="Stop Recording"
                             HorizontalAlignment="Right"
                             Style="{StaticResource DialogButton}"
                             Click="StopRecording_Click" />
@@ -614,4 +619,3 @@
     </Grid>
     </Border>
 </Window>
-
