@@ -85,6 +85,7 @@ public partial class MainWindow : Window
     private double _restoreWidth;
     private double _restoreHeight;
     private Rect? _restorePixelBounds;
+    private bool _wasMinimized;
 
     private const string ChatGptPrompt = """
         below is my journal entry. wyt? talk through it with me like a friend. don't therpaize me and give me a whole breakdown, don't repeat my thoughts with headings. really take all of this, and tell me back stuff truly as if you're an old homie.
@@ -132,6 +133,8 @@ public partial class MainWindow : Window
         _dictationPlaybackTimer.Tick += DictationPlaybackTimer_Tick;
         Loaded += MainWindow_Loaded;
         SizeChanged += (_, _) => UpdateEditorColumnLayout();
+        StateChanged += MainWindow_StateChanged;
+        Activated += MainWindow_Activated;
         SourceInitialized += (_, _) => BorderlessChrome.Apply(this);
         Closing += (_, _) =>
         {
@@ -215,12 +218,97 @@ public partial class MainWindow : Window
 
     private void UpdateEditorColumnLayout()
     {
-        var sidebarWidth = Sidebar.Visibility == Visibility.Visible ? SidebarColumn.Width.Value : 0;
-        var fallbackWidth = Math.Max(ActualWidth - sidebarWidth, EditorLayout.ColumnMinWidth);
+        var fallbackWidth = Math.Max(ActualWidth, EditorLayout.ColumnMinWidth);
         var width = EditorLayout.ResolveColumnWidth(WritingViewport.ActualWidth, fallbackWidth);
         EditorShell.Width = width;
         EditorShell.MaxWidth = width;
         PlaceholderText.MaxWidth = Math.Max(EditorLayout.ColumnMinWidth, width - 48);
+        LogLayoutSnapshot("MainWindow.xaml.cs:UpdateEditorColumnLayout", "layout updated", "F", "post-fix");
+    }
+
+    private void LogLayoutSnapshot(string location, string message, string hypothesisId, string runId = "pre-fix")
+    {
+        // #region agent log
+        DebugSessionLog.Write(
+            location,
+            message,
+            new
+            {
+                windowWidth = ActualWidth,
+                writingViewportWidth = WritingViewport.ActualWidth,
+                editorShellWidth = EditorShell.Width,
+                editorShellLeft = EditorShell.Margin.Left,
+                sidebarVisible = Sidebar.Visibility == Visibility.Visible,
+                sidebarOverlay = true,
+                windowState = WindowState.ToString(),
+                isActive = IsActive,
+                isFullscreen = _isFullscreen,
+            },
+            hypothesisId,
+            runId);
+        // #endregion
+    }
+
+    private void MainWindow_StateChanged(object? sender, EventArgs e)
+    {
+        var restoredFromMinimize = _wasMinimized && WindowState != WindowState.Minimized;
+        _wasMinimized = WindowState == WindowState.Minimized;
+
+        if (restoredFromMinimize)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+            {
+                WindowZOrderDebug.BringToForeground(this);
+                // #region agent log
+                var hwnd = new WindowInteropHelper(this).Handle;
+                DebugSessionLog.Write(
+                    "MainWindow.xaml.cs:StateChanged",
+                    "restored from minimize - bring to foreground",
+                    new
+                    {
+                        windowState = WindowState.ToString(),
+                        foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(hwnd),
+                    },
+                    "B",
+                    "post-fix");
+                // #endregion
+            });
+        }
+
+        // #region agent log
+        var selfHwnd = new WindowInteropHelper(this).Handle;
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:StateChanged",
+            "window state changed",
+            new
+            {
+                windowState = WindowState.ToString(),
+                isActive = IsActive,
+                isFullscreen = _isFullscreen,
+                topmost = Topmost,
+                hwnd = selfHwnd.ToInt64(),
+                foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(selfHwnd),
+                restoredFromMinimize,
+            },
+            "B",
+            "post-fix");
+        // #endregion
+    }
+
+    private void MainWindow_Activated(object? sender, EventArgs e)
+    {
+        // #region agent log
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:Activated",
+            "window activated",
+            new
+            {
+                windowState = WindowState.ToString(),
+                isActive = IsActive,
+                isFullscreen = _isFullscreen,
+            },
+            "C");
+        // #endregion
     }
 
     private void NormalizeEditorChrome()
@@ -2096,6 +2184,13 @@ public partial class MainWindow : Window
 
         if (minimizeAfterRestore)
         {
+            // #region agent log
+            DebugSessionLog.Write(
+                "MainWindow.xaml.cs:ExitFullscreenChrome",
+                "scheduling minimize after restore",
+                new { windowState = WindowState.ToString(), isActive = IsActive },
+                "A");
+            // #endregion
             Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => WindowFullscreen.Minimize(this));
         }
         else
@@ -2129,16 +2224,26 @@ public partial class MainWindow : Window
     private void History_Click(object sender, RoutedEventArgs e)
     {
         var show = Sidebar.Visibility != Visibility.Visible;
+        // #region agent log
+        LogLayoutSnapshot("MainWindow.xaml.cs:History_Click", "before sidebar toggle", "F", "post-fix");
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:History_Click",
+            "toggling sidebar",
+            new { show },
+            "F",
+            "post-fix");
+        // #endregion
         Sidebar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        SidebarColumn.Width = show ? new GridLength(248) : new GridLength(0);
         UpdateEditorColumnLayout();
         RenderHistory();
+        // #region agent log
+        LogLayoutSnapshot("MainWindow.xaml.cs:History_Click", "after sidebar toggle", "F", "post-fix");
+        // #endregion
     }
 
     private void CloseSidebar_Click(object sender, RoutedEventArgs e)
     {
         Sidebar.Visibility = Visibility.Collapsed;
-        SidebarColumn.Width = new GridLength(0);
         UpdateEditorColumnLayout();
     }
 
