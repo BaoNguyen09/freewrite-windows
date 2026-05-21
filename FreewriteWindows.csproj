@@ -12,6 +12,29 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
+  <!-- Whisper.net loads native libs from ./runtimes beside the exe (not inside single-file bundle). -->
+  <Target Name="ExcludeWhisperRuntimesFromSingleFile" BeforeTargets="PrepareForPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish
+        Condition="$([System.String]::Copy('%(RelativePath)').Contains('runtimes'))"
+        ExcludeFromSingleFile="true" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopyWhisperRuntimesToPublishDir" AfterTargets="Publish">
+    <PropertyGroup>
+      <_WhisperRuntimeSource>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\runtimes\</_WhisperRuntimeSource>
+    </PropertyGroup>
+    <ItemGroup>
+      <_WhisperRuntimeFile Include="$(_WhisperRuntimeSource)**\*.*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_WhisperRuntimeFile)"
+      DestinationFiles="@(_WhisperRuntimeFile->'$(PublishDir)runtimes\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true"
+      Condition="'$(PublishDir)' != '' and Exists('$(_WhisperRuntimeSource)')" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Whisper.net" Version="1.9.0" />

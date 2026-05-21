@@ -60,6 +60,7 @@ public partial class MainWindow : Window
     private bool _isDictationPlaying;
     private bool _dictationSeekDragging;
     private TimeSpan? _dictationNaturalDuration;
+    private string? _dictationDurationSourcePath;
     private List<string> _dictationClips = [];
     private int _selectedDictationClipIndex;
     private string _talkButtonDefaultContent = "Talk";
@@ -319,7 +320,7 @@ public partial class MainWindow : Window
 
         ReleaseDictationMedia();
         RenderDictationClipSelector();
-        ResetDictationPlaybackUi();
+        RefreshDictationClipUi();
     }
 
     private string? GetSelectedDictationPath()
@@ -395,8 +396,27 @@ public partial class MainWindow : Window
         ReleaseDictationMedia();
         _selectedDictationClipIndex = index;
         RenderDictationClipSelector();
-        ResetDictationPlaybackUi();
-        ApplyDictationDurationToSlider(GetSelectedDictationPath());
+        RefreshDictationClipUi();
+    }
+
+    private void RefreshDictationClipUi()
+    {
+        _dictationNaturalDuration = null;
+        _dictationDurationSourcePath = null;
+        _dictationSeekDragging = false;
+        SetPlayPauseIcon(isPlaying: false);
+        DictationSeekSlider.Value = 0;
+
+        var path = GetSelectedDictationPath();
+        if (path is null)
+        {
+            DictationTimeText.Text = FormatPlaybackTime(TimeSpan.Zero, TimeSpan.Zero);
+            return;
+        }
+
+        ApplyDictationDurationToSlider(path);
+        var duration = TryResolveDictationDuration(path, out var resolved) ? resolved : TimeSpan.Zero;
+        DictationTimeText.Text = FormatPlaybackTime(TimeSpan.Zero, duration);
     }
 
     private void LoadEntryTypography(HumanEntry entry)
@@ -843,10 +863,12 @@ public partial class MainWindow : Window
 
     private void UpdatePlaceholder()
     {
-        PlaceholderText.Visibility = !_isVideoEntryVisible && string.IsNullOrEmpty(EditorTextBox.Text)
+        PlaceholderText.Visibility = !_isVideoEntryVisible && IsEditorVisuallyEmpty()
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
+
+    private bool IsEditorVisuallyEmpty() => string.IsNullOrWhiteSpace(EditorTextBox.Text);
 
     private void FocusTimer_Tick(object? sender, EventArgs e)
     {
@@ -1301,6 +1323,7 @@ public partial class MainWindow : Window
         {
             DictationPlayer.Source = new Uri(path);
             _dictationNaturalDuration = null;
+            _dictationDurationSourcePath = null;
             DictationSeekSlider.Value = 0;
             ApplyDictationDurationToSlider(path);
         }
@@ -1330,6 +1353,7 @@ public partial class MainWindow : Window
         DictationPlayer.Stop();
         DictationPlayer.Source = null;
         _dictationNaturalDuration = null;
+        _dictationDurationSourcePath = null;
     }
 
     private void StopDictationPlayback()
@@ -1465,39 +1489,59 @@ public partial class MainWindow : Window
 
     private bool TryResolveDictationDuration(string? wavPath, out TimeSpan duration)
     {
-        if (_dictationNaturalDuration is { } cached && cached > TimeSpan.Zero)
+        duration = TimeSpan.Zero;
+        var path = wavPath ?? GetSelectedDictationPath();
+        if (path is null)
+        {
+            return false;
+        }
+
+        if (_dictationNaturalDuration is { } cached
+            && cached > TimeSpan.Zero
+            && _dictationDurationSourcePath is not null
+            && path.Equals(_dictationDurationSourcePath, StringComparison.OrdinalIgnoreCase))
         {
             duration = cached;
             return true;
         }
 
-        if (DictationPlayer.NaturalDuration.HasTimeSpan)
+        if (File.Exists(path))
+        {
+            try
+            {
+                using var reader = new WaveFileReader(path);
+                duration = reader.TotalTime;
+                if (duration > TimeSpan.Zero)
+                {
+                    RememberDictationDuration(path, duration);
+                    return true;
+                }
+            }
+            catch
+            {
+                // Fall through to media element metadata.
+            }
+        }
+
+        if (DictationPlayer.Source?.LocalPath is { } loadedPath
+            && loadedPath.Equals(path, StringComparison.OrdinalIgnoreCase)
+            && DictationPlayer.NaturalDuration.HasTimeSpan)
         {
             duration = DictationPlayer.NaturalDuration.TimeSpan;
-            _dictationNaturalDuration = duration;
-            return duration > TimeSpan.Zero;
+            if (duration > TimeSpan.Zero)
+            {
+                RememberDictationDuration(path, duration);
+                return true;
+            }
         }
 
-        wavPath ??= DictationPlayer.Source?.LocalPath ?? GetSelectedDictationPath();
+        return false;
+    }
 
-        if (wavPath is null || !File.Exists(wavPath))
-        {
-            duration = TimeSpan.Zero;
-            return false;
-        }
-
-        try
-        {
-            using var reader = new WaveFileReader(wavPath);
-            duration = reader.TotalTime;
-            _dictationNaturalDuration = duration;
-            return duration > TimeSpan.Zero;
-        }
-        catch
-        {
-            duration = TimeSpan.Zero;
-            return false;
-        }
+    private void RememberDictationDuration(string path, TimeSpan duration)
+    {
+        _dictationNaturalDuration = duration;
+        _dictationDurationSourcePath = path;
     }
 
     private async void RetryTranscribe_Click(object sender, RoutedEventArgs e)
