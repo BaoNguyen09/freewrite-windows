@@ -86,7 +86,7 @@ public partial class MainWindow : Window
     private double _restoreHeight;
     private Rect? _restorePixelBounds;
     private bool _wasMinimized;
-    private bool _restoreForegroundPending;
+    private bool _minimizingFromFullscreen;
 
     private const string ChatGptPrompt = """
         below is my journal entry. wyt? talk through it with me like a friend. don't therpaize me and give me a whole breakdown, don't repeat my thoughts with headings. really take all of this, and tell me back stuff truly as if you're an old homie.
@@ -261,17 +261,11 @@ public partial class MainWindow : Window
     private void MainWindow_StateChanged(object? sender, EventArgs e)
     {
         var restoredFromMinimize = _wasMinimized && WindowState != WindowState.Minimized;
-        if (WindowState == WindowState.Minimized)
-        {
-            _restoreForegroundPending = true;
-        }
-
         _wasMinimized = WindowState == WindowState.Minimized;
 
-        if (restoredFromMinimize)
+        if (WindowState == WindowState.Minimized && _minimizingFromFullscreen)
         {
-            _restoreForegroundPending = true;
-            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => TryRestoreForeground("StateChanged"));
+            FinalizeFullscreenExitWhileMinimized();
         }
 
         // #region agent log
@@ -284,23 +278,18 @@ public partial class MainWindow : Window
                 windowState = WindowState.ToString(),
                 isActive = IsActive,
                 isFullscreen = _isFullscreen,
-                topmost = Topmost,
+                minimizingFromFullscreen = _minimizingFromFullscreen,
                 hwnd = selfHwnd.ToInt64(),
                 foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(selfHwnd),
                 restoredFromMinimize,
             },
-            "B",
-            "verify-2");
+            "E",
+            "verify-3");
         // #endregion
     }
 
     private void MainWindow_Activated(object? sender, EventArgs e)
     {
-        if (_restoreForegroundPending)
-        {
-            TryRestoreForeground("Activated");
-        }
-
         // #region agent log
         DebugSessionLog.Write(
             "MainWindow.xaml.cs:Activated",
@@ -310,34 +299,9 @@ public partial class MainWindow : Window
                 windowState = WindowState.ToString(),
                 isActive = IsActive,
                 isFullscreen = _isFullscreen,
-                restoreForegroundPending = _restoreForegroundPending,
             },
             "C",
-            "verify-2");
-        // #endregion
-    }
-
-    private void TryRestoreForeground(string source)
-    {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        var foregroundBefore = WindowZOrderDebug.IsForegroundWindow(hwnd);
-        var success = WindowZOrderDebug.BringToForeground(this);
-        var foregroundAfter = WindowZOrderDebug.IsForegroundWindow(hwnd);
-        _restoreForegroundPending = !foregroundAfter;
-        // #region agent log
-        DebugSessionLog.Write(
-            "MainWindow.xaml.cs:TryRestoreForeground",
-            "foreground restore attempt",
-            new
-            {
-                source,
-                success,
-                foregroundBefore,
-                foregroundAfter,
-                windowState = WindowState.ToString(),
-            },
-            "B",
-            "verify-2");
+            "verify-3");
         // #endregion
     }
 
@@ -2185,7 +2149,7 @@ public partial class MainWindow : Window
         FullscreenButton.Content = "Minimize";
     }
 
-    private void ExitFullscreenChrome(bool minimizeAfterRestore = false)
+    private void ExitFullscreenChrome()
     {
         if (!_isFullscreen)
         {
@@ -2211,27 +2175,71 @@ public partial class MainWindow : Window
 
         _isFullscreen = false;
         FullscreenButton.Content = "Fullscreen";
-
-        if (minimizeAfterRestore)
-        {
-            // #region agent log
-            DebugSessionLog.Write(
-                "MainWindow.xaml.cs:ExitFullscreenChrome",
-                "scheduling minimize after restore",
-                new { windowState = WindowState.ToString(), isActive = IsActive },
-                "A");
-            // #endregion
-            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => WindowFullscreen.Minimize(this));
-        }
-        else
-        {
-            WindowState = _previousWindowState;
-        }
+        WindowState = _previousWindowState;
     }
 
     private void MinimizeFromFullscreen()
     {
-        ExitFullscreenChrome(minimizeAfterRestore: true);
+        if (!_isFullscreen)
+        {
+            WindowState = WindowState.Minimized;
+            return;
+        }
+
+        _minimizingFromFullscreen = true;
+        // #region agent log
+        var hwnd = new WindowInteropHelper(this).Handle;
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:MinimizeFromFullscreen",
+            "minimize while fullscreen (defer resize until minimized)",
+            new
+            {
+                hwnd = hwnd.ToInt64(),
+                foregroundIsSelf = WindowZOrderDebug.IsForegroundWindow(hwnd),
+                isFullscreen = _isFullscreen,
+            },
+            "E",
+            "verify-3");
+        // #endregion
+        WindowFullscreen.Minimize(this);
+    }
+
+    private void FinalizeFullscreenExitWhileMinimized()
+    {
+        if (!_isFullscreen)
+        {
+            _minimizingFromFullscreen = false;
+            return;
+        }
+
+        // #region agent log
+        DebugSessionLog.Write(
+            "MainWindow.xaml.cs:FinalizeFullscreenExitWhileMinimized",
+            "exit fullscreen chrome while window is minimized",
+            new { windowState = WindowState.ToString() },
+            "E",
+            "verify-3");
+        // #endregion
+
+        WindowStyle = _previousWindowStyle;
+        ResizeMode = _previousResizeMode;
+
+        if (_restorePixelBounds is { } pixelBounds)
+        {
+            WindowFullscreen.RestoreBounds(this, pixelBounds);
+            _restorePixelBounds = null;
+        }
+        else
+        {
+            Left = _restoreLeft;
+            Top = _restoreTop;
+            Width = _restoreWidth;
+            Height = _restoreHeight;
+        }
+
+        _isFullscreen = false;
+        FullscreenButton.Content = "Fullscreen";
+        _minimizingFromFullscreen = false;
     }
 
     private void NewEntry_Click(object sender, RoutedEventArgs e) => CreateNewEntry();
