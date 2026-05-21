@@ -52,6 +52,7 @@ public partial class MainWindow : Window
     private bool _isVideoPaused;
     private HumanEntry? _pendingDeleteEntry;
     private Guid? _hoveredHistoryEntryId;
+    private bool _editorHasNonWhitespaceContent;
     private readonly LocalTranscriptionService _transcription = new();
     private readonly SemaphoreSlim _transcriptionGate = new(1, 1);
     private AudioDictationService? _dictation;
@@ -113,7 +114,7 @@ public partial class MainWindow : Window
         _saveTimer.Tick += (_, _) =>
         {
             _saveTimer.Stop();
-            SaveCurrentEntry(Sidebar.Visibility == Visibility.Visible);
+            SaveCurrentEntry(renderHistory: false);
         };
         _recordingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _recordingTimer.Tick += RecordingTimer_Tick;
@@ -245,7 +246,7 @@ public partial class MainWindow : Window
         LoadEntryTypography(entry);
         UpdateVideoAwareControls();
         UpdateDictationAudioBar();
-        UpdatePlaceholder();
+        SyncEditorWhitespaceState();
         RenderHistory();
         if (entry.EntryType == EntryType.Text)
         {
@@ -270,7 +271,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                EditorTextBox.Text = BuildNewEntryLeadingSpacing();
+                EditorTextBox.Text = NewEntryLeadingSpacing;
             }
 
             PlaceholderText.Text = _placeholderOptions[_random.Next(_placeholderOptions.Length)];
@@ -284,7 +285,7 @@ public partial class MainWindow : Window
         LoadEntryTypography(entry);
         UpdateVideoAwareControls();
         UpdateDictationAudioBar();
-        UpdatePlaceholder();
+        SyncEditorWhitespaceState();
         RenderHistory();
         PositionEditorCaretAtEnd();
     }
@@ -292,43 +293,14 @@ public partial class MainWindow : Window
     private void PositionEditorCaretAtEnd()
     {
         EditorTextBox.CaretIndex = EditorTextBox.Text.Length;
-        // #region agent log
-        AgentDebugLog.Write("H8", "MainWindow.xaml.cs:PositionEditorCaretAtEnd", "caret set sync", new
-        {
-            textLen = EditorTextBox.Text.Length,
-            caretIndex = EditorTextBox.CaretIndex,
-            lineCount = EditorTextBox.LineCount,
-            scrollOffset = GetEditorScrollOffset(),
-        }, runId: "post-fix");
-        // #endregion
         EditorTextBox.Focus();
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
         {
-            if (IsEditorVisuallyEmpty())
-            {
-                EditorTextBox.Text = BuildNewEntryLeadingSpacing();
-            }
-
             EditorTextBox.CaretIndex = EditorTextBox.Text.Length;
             EditorTextBox.ScrollToEnd();
             var scrollViewer = FindVisualChildren<ScrollViewer>(EditorTextBox).FirstOrDefault();
             scrollViewer?.ScrollToEnd();
-            // #region agent log
-            AgentDebugLog.Write("H9", "MainWindow.xaml.cs:PositionEditorCaretAtEnd", "caret after scroll", new
-            {
-                caretIndex = EditorTextBox.CaretIndex,
-                lineCount = EditorTextBox.LineCount,
-                scrollOffset = GetEditorScrollOffset(),
-                viewportHeight = WritingViewport.ActualHeight,
-            }, runId: "post-fix");
-            // #endregion
         });
-    }
-
-    private double GetEditorScrollOffset()
-    {
-        var scrollViewer = FindVisualChildren<ScrollViewer>(EditorTextBox).FirstOrDefault();
-        return scrollViewer?.VerticalOffset ?? -1;
     }
 
     private void UpdateDictationAudioBar(bool selectLatest = false)
@@ -554,6 +526,7 @@ public partial class MainWindow : Window
         var isHovered = _hoveredHistoryEntryId == entry.Id;
         var border = new Border
         {
+            Tag = entry.Id,
             Background = GetHistoryRowBackground(isSelected, isHovered),
             BorderThickness = new Thickness(0),
             CornerRadius = new CornerRadius(4),
@@ -600,6 +573,7 @@ public partial class MainWindow : Window
         });
         textPanel.Children.Add(new TextBlock
         {
+            Tag = "preview",
             Text = string.IsNullOrWhiteSpace(entry.PreviewText) ? "Empty entry" : entry.PreviewText,
             Foreground = new SolidColorBrush(_isDarkMode ? Color.FromRgb(170, 170, 170) : Color.FromRgb(110, 110, 110)),
             FontSize = 12,
@@ -902,26 +876,82 @@ public partial class MainWindow : Window
 
     private void EditorTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        UpdatePlaceholder();
+        if (!_editorHasNonWhitespaceContent)
+        {
+            _editorHasNonWhitespaceContent = HasNonWhitespaceContent(EditorTextBox.Text);
+            UpdatePlaceholder();
+        }
+        else if (EditorTextBox.Text.Length <= 32)
+        {
+            _editorHasNonWhitespaceContent = HasNonWhitespaceContent(EditorTextBox.Text);
+            if (!_editorHasNonWhitespaceContent)
+            {
+                UpdatePlaceholder();
+            }
+        }
+
         if (!_isLoadingEntry && _selectedEntry?.EntryType == EntryType.Text)
         {
             _selectedEntry.PreviewText = FreewriteStore.PreviewTextFromContent(EditorTextBox.Text, 30);
             QueueSaveCurrentEntry();
-            if (Sidebar.Visibility == Visibility.Visible)
+            UpdateSelectedHistoryPreview();
+        }
+    }
+
+    private void SyncEditorWhitespaceState()
+    {
+        _editorHasNonWhitespaceContent = HasNonWhitespaceContent(EditorTextBox.Text);
+        UpdatePlaceholder();
+    }
+
+    private static bool HasNonWhitespaceContent(string text)
+    {
+        foreach (var ch in text)
+        {
+            if (!char.IsWhiteSpace(ch))
             {
-                RenderHistory();
+                return true;
             }
+        }
+
+        return false;
+    }
+
+    private void UpdateSelectedHistoryPreview()
+    {
+        if (Sidebar.Visibility != Visibility.Visible || _selectedEntry is null || HistoryItems is null)
+        {
+            return;
+        }
+
+        foreach (var child in HistoryItems.Children)
+        {
+            if (child is not Border { Tag: Guid entryId } border || entryId != _selectedEntry.Id)
+            {
+                continue;
+            }
+
+            if (border.Child is not Grid grid || grid.Children.Count == 0)
+            {
+                return;
+            }
+
+            var textPanel = grid.Children.OfType<StackPanel>().FirstOrDefault();
+            var preview = textPanel?.Children.OfType<TextBlock>().FirstOrDefault(block => "preview".Equals(block.Tag));
+            if (preview is not null)
+            {
+                preview.Text = string.IsNullOrWhiteSpace(_selectedEntry.PreviewText) ? "Empty entry" : _selectedEntry.PreviewText;
+            }
+
+            return;
         }
     }
 
     private void UpdatePlaceholder()
     {
-        PlaceholderText.Visibility = !_isVideoEntryVisible && IsEditorVisuallyEmpty()
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        var shouldShow = !_isVideoEntryVisible && !_editorHasNonWhitespaceContent;
+        PlaceholderText.Visibility = shouldShow ? Visibility.Visible : Visibility.Collapsed;
     }
-
-    private bool IsEditorVisuallyEmpty() => string.IsNullOrWhiteSpace(EditorTextBox.Text);
 
     private void FocusTimer_Tick(object? sender, EventArgs e)
     {
@@ -1266,19 +1296,6 @@ public partial class MainWindow : Window
         }
 
         BeginTranscriptionUi("Transcribing…");
-        // #region agent log
-        var whisperDll = Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "whisper.dll");
-        AgentDebugLog.Write("H1", "MainWindow.xaml.cs:RunTranscriptionAsync", "transcription start", new
-        {
-            audioPath,
-            audioExists = File.Exists(audioPath),
-            baseDir = AppContext.BaseDirectory,
-            cwd = Environment.CurrentDirectory,
-            processPath = Environment.ProcessPath,
-            whisperDllExists = File.Exists(whisperDll),
-            modelExists = File.Exists(_transcription.ModelFilePath),
-        }, runId: "post-fix");
-        // #endregion
         try
         {
             var transcript = await _transcription.TranscribeWavAsync(
@@ -1310,14 +1327,6 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            // #region agent log
-            AgentDebugLog.Write("H2", "MainWindow.xaml.cs:RunTranscriptionAsync", "transcription failed", new
-            {
-                exType = ex.GetType().FullName,
-                ex.Message,
-                inner = ex.InnerException?.Message,
-            });
-            // #endregion
             MessageBox.Show(
                 this,
                 $"Transcription failed.\n\n{ex.Message}\n\nUse \"Transcribe again\" once the local model is ready.",
@@ -1458,22 +1467,7 @@ public partial class MainWindow : Window
     }
 
     private const string TranscriptTopSpacing = "\n\n";
-    private const int MinNewEntryLeadingLines = 3;
-    private const int MaxNewEntryLeadingLines = 28;
-
-    private string BuildNewEntryLeadingSpacing()
-    {
-        var viewportHeight = WritingViewport.ActualHeight;
-        if (viewportHeight < 120)
-        {
-            viewportHeight = ActualHeight > 0 ? ActualHeight * 0.75 : 520;
-        }
-
-        var lineHeight = Math.Max(20, EditorTextBox.FontSize * 1.5);
-        var targetLines = (int)Math.Round((viewportHeight * 0.38) / lineHeight);
-        var lineCount = Math.Clamp(targetLines, MinNewEntryLeadingLines, MaxNewEntryLeadingLines);
-        return new string('\n', lineCount);
-    }
+    private const string NewEntryLeadingSpacing = "\n\n\n";
 
     private void AppendTranscriptToEditor(string transcript)
     {

@@ -55,59 +55,27 @@ public sealed class LocalTranscriptionService
     {
         await EnsureModelAsync(progress);
 
-        // #region agent log
-        AgentDebugLog.Write("H3", "LocalTranscriptionService.cs:TranscribeWavAsync", "before whisper factory", new
-        {
-            wavPath,
-            wavExists = File.Exists(wavPath),
-            modelPath = ModelPath,
-            modelExists = File.Exists(ModelPath),
-            baseDir = AppContext.BaseDirectory,
-        });
-        // #endregion
+        var builder = new StringBuilder();
+        using var whisperFactory = WhisperFactory.FromPath(ModelPath);
+        using var processor = whisperFactory.CreateBuilder()
+            .WithLanguage("en")
+            .Build();
 
-        try
+        await using var fileStream = File.OpenRead(wavPath);
+        await foreach (var segment in processor.ProcessAsync(fileStream))
         {
-            var builder = new StringBuilder();
-            using var whisperFactory = WhisperFactory.FromPath(ModelPath);
-            using var processor = whisperFactory.CreateBuilder()
-                .WithLanguage("en")
-                .Build();
-
-            await using var fileStream = File.OpenRead(wavPath);
-            // #region agent log
-            AgentDebugLog.Write("H4", "LocalTranscriptionService.cs:TranscribeWavAsync", "factory ok, processing wav", new
+            if (!string.IsNullOrWhiteSpace(segment.Text))
             {
-                wavLength = fileStream.Length,
-            });
-            // #endregion
-            await foreach (var segment in processor.ProcessAsync(fileStream))
-            {
-                if (!string.IsNullOrWhiteSpace(segment.Text))
+                if (builder.Length > 0)
                 {
-                    if (builder.Length > 0)
-                    {
-                        builder.Append(' ');
-                    }
-
-                    builder.Append(segment.Text.Trim());
+                    builder.Append(' ');
                 }
-            }
 
-            return FormatTranscript(builder.ToString());
+                builder.Append(segment.Text.Trim());
+            }
         }
-        catch (Exception ex)
-        {
-            // #region agent log
-            AgentDebugLog.Write("H5", "LocalTranscriptionService.cs:TranscribeWavAsync", "whisper exception", new
-            {
-                exType = ex.GetType().FullName,
-                ex.Message,
-                inner = ex.InnerException?.Message,
-            });
-            // #endregion
-            throw;
-        }
+
+        return FormatTranscript(builder.ToString());
     }
 
     private static string FormatTranscript(string text)
