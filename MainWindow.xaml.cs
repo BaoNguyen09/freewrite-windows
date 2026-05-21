@@ -1003,6 +1003,13 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && _isFullscreen)
+        {
+            MinimizeFromFullscreen();
+            e.Handled = true;
+            return;
+        }
+
         if (_backspaceDisabled && (e.Key == Key.Back || e.Key == Key.Delete))
         {
             e.Handled = true;
@@ -1993,23 +2000,37 @@ public partial class MainWindow : Window
     {
         if (!_isFullscreen)
         {
-            _previousWindowState = WindowState;
-            _previousWindowStyle = WindowStyle;
-            _previousResizeMode = ResizeMode;
-            WindowStyle = WindowStyle.None;
-            ResizeMode = ResizeMode.NoResize;
-            WindowState = WindowState.Maximized;
-            _isFullscreen = true;
-            FullscreenButton.Content = "Minimize";
+            EnterFullscreen();
         }
         else
         {
+            MinimizeFromFullscreen();
+        }
+    }
+
+    private void EnterFullscreen()
+    {
+        _previousWindowState = WindowState;
+        _previousWindowStyle = WindowStyle;
+        _previousResizeMode = ResizeMode;
+        WindowStyle = WindowStyle.None;
+        ResizeMode = ResizeMode.NoResize;
+        WindowState = WindowState.Maximized;
+        _isFullscreen = true;
+        FullscreenButton.Content = "Minimize";
+    }
+
+    private void MinimizeFromFullscreen()
+    {
+        if (_isFullscreen)
+        {
             WindowStyle = _previousWindowStyle;
             ResizeMode = _previousResizeMode;
-            WindowState = _previousWindowState;
             _isFullscreen = false;
             FullscreenButton.Content = "Fullscreen";
         }
+
+        WindowState = WindowState.Minimized;
     }
 
     private void NewEntry_Click(object sender, RoutedEventArgs e) => CreateNewEntry();
