@@ -53,10 +53,12 @@ public partial class MainWindow : Window
     private HumanEntry? _pendingDeleteEntry;
     private Guid? _hoveredHistoryEntryId;
     private readonly LocalTranscriptionService _transcription = new();
+    private readonly SemaphoreSlim _transcriptionGate = new(1, 1);
     private AudioDictationService? _dictation;
     private TaskCompletionSource<bool>? _recordingStopCompletion;
     private DateTime _recordingStartedAt;
     private bool _isTalkRecording;
+    private bool _isTranscribing;
     private bool _isDictationPlaying;
     private bool _dictationSeekDragging;
     private TimeSpan? _dictationNaturalDuration;
@@ -293,7 +295,7 @@ public partial class MainWindow : Window
 
         var hasAudio = _dictationClips.Count > 0;
         DictationAudioBar.Visibility = hasAudio ? Visibility.Visible : Visibility.Collapsed;
-        RetryTranscribeButton.Visibility = hasAudio ? Visibility.Visible : Visibility.Collapsed;
+        RetryTranscribePanel.Visibility = hasAudio ? Visibility.Visible : Visibility.Collapsed;
 
         if (!hasAudio)
         {
@@ -802,6 +804,11 @@ public partial class MainWindow : Window
         TalkWaveform.BarBrush = _isDarkMode
             ? new SolidColorBrush(Color.FromRgb(170, 170, 170))
             : new SolidColorBrush(Color.FromRgb(120, 120, 120));
+        var spinnerBrush = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(180, 180, 180))
+            : new SolidColorBrush(Color.FromRgb(110, 110, 110));
+        TalkTranscribeSpinner.Foreground = spinnerBrush;
+        RetryTranscribeSpinner.Foreground = spinnerBrush;
         DictationAudioBar.Background = TalkRecordingBar.Background;
         DictationAudioBar.BorderBrush = TalkRecordingBar.BorderBrush;
         DictationTimeText.Foreground = soft;
@@ -992,7 +999,7 @@ public partial class MainWindow : Window
 
     private async void Talk_Click(object sender, RoutedEventArgs e)
     {
-        if (_isTalkRecording)
+        if (_isTalkRecording || _isTranscribing)
         {
             return;
         }
@@ -1133,14 +1140,117 @@ public partial class MainWindow : Window
     private void HideTalkOverlay()
     {
         _recordingTimer.Stop();
-        TalkRecordingBar.Visibility = Visibility.Collapsed;
-        TalkButton.IsEnabled = true;
-        TalkButton.Content = _talkButtonDefaultContent;
-        TalkButton.Foreground = _talkButtonDefaultForeground ?? Brushes.Gray;
+        if (!_isTranscribing)
+        {
+            TalkRecordingBar.Visibility = Visibility.Collapsed;
+            TalkWaveform.Visibility = Visibility.Visible;
+            TalkTranscribeSpinner.Visibility = Visibility.Collapsed;
+        }
+
+        if (!_isTranscribing)
+        {
+            TalkButton.IsEnabled = true;
+            TalkButton.Content = _talkButtonDefaultContent;
+            TalkButton.Foreground = _talkButtonDefaultForeground ?? Brushes.Gray;
+        }
+
         _isTalkRecording = false;
         if (_dictation is not null)
         {
             _dictation.LevelChanged -= OnTalkLevelChanged;
+        }
+    }
+
+    private void BeginTranscriptionUi(string statusText)
+    {
+        _isTranscribing = true;
+        TalkRecordingBar.Visibility = Visibility.Visible;
+        TalkWaveform.Visibility = Visibility.Collapsed;
+        TalkTranscribeSpinner.Visibility = Visibility.Visible;
+        TalkElapsedText.Text = statusText;
+        CancelTalkButton.IsEnabled = false;
+        FinishTalkButton.IsEnabled = false;
+        TalkButton.IsEnabled = false;
+        TalkButton.Content = "…";
+        RetryTranscribeButton.IsEnabled = false;
+        RetryTranscribeButton.Content = "Transcribing…";
+        RetryTranscribeSpinner.Visibility = Visibility.Visible;
+    }
+
+    private void EndTranscriptionUi()
+    {
+        _isTranscribing = false;
+        TalkTranscribeSpinner.Visibility = Visibility.Collapsed;
+        TalkWaveform.Visibility = Visibility.Visible;
+        TalkRecordingBar.Visibility = Visibility.Collapsed;
+        RetryTranscribeSpinner.Visibility = Visibility.Collapsed;
+        RetryTranscribeButton.Content = "Transcribe again";
+        RetryTranscribeButton.IsEnabled = true;
+        TalkButton.IsEnabled = true;
+        TalkButton.Content = _talkButtonDefaultContent;
+        TalkButton.Foreground = _talkButtonDefaultForeground ?? Brushes.Gray;
+    }
+
+    private static string FormatTranscriptionStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return "Transcribing…";
+        }
+
+        return status.Length > 42 ? status[..42] + "…" : status;
+    }
+
+    private async Task<bool> RunTranscriptionAsync(string audioPath, bool selectLatestClip)
+    {
+        if (!await _transcriptionGate.WaitAsync(0))
+        {
+            return false;
+        }
+
+        BeginTranscriptionUi("Transcribing…");
+        try
+        {
+            var transcript = await _transcription.TranscribeWavAsync(
+                audioPath,
+                new Progress<string>(status => Dispatcher.Invoke(() =>
+                    TalkElapsedText.Text = FormatTranscriptionStatus(status))));
+
+            if (string.IsNullOrWhiteSpace(transcript))
+            {
+                MessageBox.Show(
+                    this,
+                    "Audio saved, but transcription came back empty. Use \"Transcribe again\" after the local model finishes downloading.",
+                    "Freewrite");
+                return false;
+            }
+
+            AppendTranscriptToEditor(transcript);
+            QueueSaveCurrentEntry();
+            if (selectLatestClip)
+            {
+                UpdateDictationAudioBar(selectLatest: true);
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"Transcription failed.\n\n{ex.Message}\n\nUse \"Transcribe again\" once the local model is ready.",
+                "Freewrite");
+            if (selectLatestClip)
+            {
+                UpdateDictationAudioBar(selectLatest: true);
+            }
+
+            return false;
+        }
+        finally
+        {
+            EndTranscriptionUi();
+            _transcriptionGate.Release();
         }
     }
 
@@ -1214,12 +1324,17 @@ public partial class MainWindow : Window
 
     private async void FinishTalk_Click(object sender, RoutedEventArgs e)
     {
+        if (_isTranscribing)
+        {
+            return;
+        }
+
         await FinishTalkRecordingAsync();
     }
 
     private async Task FinishTalkRecordingAsync()
     {
-        if (_selectedEntry is null || _dictation is null || !_isTalkRecording)
+        if (_selectedEntry is null || _dictation is null || !_isTalkRecording || _isTranscribing)
         {
             HideTalkOverlay();
             return;
@@ -1229,53 +1344,30 @@ public partial class MainWindow : Window
         _recordingTimer.Stop();
         CancelTalkButton.IsEnabled = false;
         FinishTalkButton.IsEnabled = false;
-        TalkElapsedText.Text = "Transcribing…";
 
+        string? audioPath;
         try
         {
             await _dictation.StopAsync();
-            var audioPath = _dictation.OutputPath ?? GetSelectedDictationPath() ?? _store.LatestDictationAudioPath(_selectedEntry);
-            if (!File.Exists(audioPath))
-            {
-                MessageBox.Show(this, "No audio was captured. Check microphone permissions and try again.", "Freewrite");
-                HideTalkOverlay();
-                return;
-            }
-
-            var transcript = await _transcription.TranscribeWavAsync(
-                audioPath,
-                new Progress<string>(status => Dispatcher.Invoke(() => TalkElapsedText.Text = status)));
-
-            if (string.IsNullOrWhiteSpace(transcript))
-            {
-                MessageBox.Show(
-                    this,
-                    "Audio saved, but transcription came back empty. Use \"Transcribe again\" after the local model finishes downloading.",
-                    "Freewrite");
-            }
-            else
-            {
-                AppendTranscriptToEditor(transcript);
-                QueueSaveCurrentEntry();
-            }
-
-            UpdateDictationAudioBar(selectLatest: true);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(
-                this,
-                $"Transcription failed.\n\n{ex.Message}\n\nUse \"Transcribe again\" once the local model is ready.",
-                "Freewrite");
-            UpdateDictationAudioBar(selectLatest: true);
+            audioPath = _dictation.OutputPath ?? GetSelectedDictationPath() ?? _store.LatestDictationAudioPath(_selectedEntry);
         }
         finally
         {
-            _dictation?.Dispose();
+            _dictation.LevelChanged -= OnTalkLevelChanged;
+            _dictation.Dispose();
             _dictation = null;
-            ReleaseDictationMedia();
-            HideTalkOverlay();
         }
+
+        if (audioPath is null || !File.Exists(audioPath))
+        {
+            MessageBox.Show(this, "No audio was captured. Check microphone permissions and try again.", "Freewrite");
+            HideTalkOverlay();
+            return;
+        }
+
+        ReleaseDictationMedia();
+        await RunTranscriptionAsync(audioPath, selectLatestClip: true);
+        HideTalkOverlay();
     }
 
     private const string TranscriptTopSpacing = "\n\n";
@@ -1546,33 +1638,18 @@ public partial class MainWindow : Window
 
     private async void RetryTranscribe_Click(object sender, RoutedEventArgs e)
     {
+        if (_isTranscribing || _isTalkRecording)
+        {
+            return;
+        }
+
         var audioPath = GetSelectedDictationPath();
         if (_selectedEntry is null || audioPath is null)
         {
             return;
         }
 
-        try
-        {
-            RetryTranscribeButton.IsEnabled = false;
-            var transcript = await _transcription.TranscribeWavAsync(audioPath);
-            if (string.IsNullOrWhiteSpace(transcript))
-            {
-                MessageBox.Show(this, "Transcription returned empty. Try again after the model download completes.", "Freewrite");
-                return;
-            }
-
-            AppendTranscriptToEditor(transcript);
-            QueueSaveCurrentEntry();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, $"Transcription failed.\n\n{ex.Message}", "Freewrite");
-        }
-        finally
-        {
-            RetryTranscribeButton.IsEnabled = true;
-        }
+        await RunTranscriptionAsync(audioPath, selectLatestClip: false);
     }
 
     private void RecordingTimer_Tick(object? sender, EventArgs e)
