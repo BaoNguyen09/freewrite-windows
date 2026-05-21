@@ -339,6 +339,8 @@
                     <local:WaveformBar x:Name="TalkWaveform"
                                        Grid.Column="0"
                                        Height="24"
+                                       MinWidth="120"
+                                       MaxWidth="800"
                                        Margin="0,0,12,0"
                                        HorizontalAlignment="Stretch"
                                        VerticalAlignment="Center" />

@@ -198,6 +198,8 @@ public sealed class WaveformBar : Panel
 
     {
 
+        finalSize = ClampSize(finalSize);
+
         var pitch = finalSize.Width / BarCount;
 
         var barWidth = Math.Clamp(pitch * 0.28, 1.5, 2.5);
@@ -230,6 +232,17 @@ public sealed class WaveformBar : Panel
 
         return finalSize;
 
+    }
+
+    private static Size ClampSize(Size size)
+    {
+        var width = double.IsInfinity(size.Width) || double.IsNaN(size.Width) || size.Width <= 0
+            ? 320
+            : size.Width;
+        var height = double.IsInfinity(size.Height) || double.IsNaN(size.Height) || size.Height <= 0
+            ? 24
+            : size.Height;
+        return new Size(width, height);
     }
 
 }

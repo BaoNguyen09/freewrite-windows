@@ -30,6 +30,12 @@ public partial class App : Application
 
         try
         {
+            var appDir = Path.GetDirectoryName(Environment.ProcessPath);
+            if (!string.IsNullOrWhiteSpace(appDir))
+            {
+                Directory.SetCurrentDirectory(appDir);
+            }
+
             base.OnStartup(e);
             var window = new MainWindow();
             MainWindow = window;

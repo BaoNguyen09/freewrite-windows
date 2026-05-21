@@ -247,6 +247,10 @@ public partial class MainWindow : Window
         UpdateDictationAudioBar();
         UpdatePlaceholder();
         RenderHistory();
+        if (entry.EntryType == EntryType.Text)
+        {
+            PositionEditorCaretAtEnd();
+        }
     }
 
     private void CreateNewEntry()
@@ -266,7 +270,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                EditorTextBox.Text = NewEntryLeadingSpacing;
+                EditorTextBox.Text = BuildNewEntryLeadingSpacing();
             }
 
             PlaceholderText.Text = _placeholderOptions[_random.Next(_placeholderOptions.Length)];
@@ -282,8 +286,49 @@ public partial class MainWindow : Window
         UpdateDictationAudioBar();
         UpdatePlaceholder();
         RenderHistory();
+        PositionEditorCaretAtEnd();
+    }
+
+    private void PositionEditorCaretAtEnd()
+    {
         EditorTextBox.CaretIndex = EditorTextBox.Text.Length;
+        // #region agent log
+        AgentDebugLog.Write("H8", "MainWindow.xaml.cs:PositionEditorCaretAtEnd", "caret set sync", new
+        {
+            textLen = EditorTextBox.Text.Length,
+            caretIndex = EditorTextBox.CaretIndex,
+            lineCount = EditorTextBox.LineCount,
+            scrollOffset = GetEditorScrollOffset(),
+        }, runId: "post-fix");
+        // #endregion
         EditorTextBox.Focus();
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        {
+            if (IsEditorVisuallyEmpty())
+            {
+                EditorTextBox.Text = BuildNewEntryLeadingSpacing();
+            }
+
+            EditorTextBox.CaretIndex = EditorTextBox.Text.Length;
+            EditorTextBox.ScrollToEnd();
+            var scrollViewer = FindVisualChildren<ScrollViewer>(EditorTextBox).FirstOrDefault();
+            scrollViewer?.ScrollToEnd();
+            // #region agent log
+            AgentDebugLog.Write("H9", "MainWindow.xaml.cs:PositionEditorCaretAtEnd", "caret after scroll", new
+            {
+                caretIndex = EditorTextBox.CaretIndex,
+                lineCount = EditorTextBox.LineCount,
+                scrollOffset = GetEditorScrollOffset(),
+                viewportHeight = WritingViewport.ActualHeight,
+            }, runId: "post-fix");
+            // #endregion
+        });
+    }
+
+    private double GetEditorScrollOffset()
+    {
+        var scrollViewer = FindVisualChildren<ScrollViewer>(EditorTextBox).FirstOrDefault();
+        return scrollViewer?.VerticalOffset ?? -1;
     }
 
     private void UpdateDictationAudioBar(bool selectLatest = false)
@@ -1221,6 +1266,19 @@ public partial class MainWindow : Window
         }
 
         BeginTranscriptionUi("Transcribing…");
+        // #region agent log
+        var whisperDll = Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "whisper.dll");
+        AgentDebugLog.Write("H1", "MainWindow.xaml.cs:RunTranscriptionAsync", "transcription start", new
+        {
+            audioPath,
+            audioExists = File.Exists(audioPath),
+            baseDir = AppContext.BaseDirectory,
+            cwd = Environment.CurrentDirectory,
+            processPath = Environment.ProcessPath,
+            whisperDllExists = File.Exists(whisperDll),
+            modelExists = File.Exists(_transcription.ModelFilePath),
+        }, runId: "post-fix");
+        // #endregion
         try
         {
             var transcript = await _transcription.TranscribeWavAsync(
@@ -1252,6 +1310,14 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            // #region agent log
+            AgentDebugLog.Write("H2", "MainWindow.xaml.cs:RunTranscriptionAsync", "transcription failed", new
+            {
+                exType = ex.GetType().FullName,
+                ex.Message,
+                inner = ex.InnerException?.Message,
+            });
+            // #endregion
             MessageBox.Show(
                 this,
                 $"Transcription failed.\n\n{ex.Message}\n\nUse \"Transcribe again\" once the local model is ready.",
@@ -1392,7 +1458,22 @@ public partial class MainWindow : Window
     }
 
     private const string TranscriptTopSpacing = "\n\n";
-    private const string NewEntryLeadingSpacing = "\n\n\n";
+    private const int MinNewEntryLeadingLines = 3;
+    private const int MaxNewEntryLeadingLines = 28;
+
+    private string BuildNewEntryLeadingSpacing()
+    {
+        var viewportHeight = WritingViewport.ActualHeight;
+        if (viewportHeight < 120)
+        {
+            viewportHeight = ActualHeight > 0 ? ActualHeight * 0.75 : 520;
+        }
+
+        var lineHeight = Math.Max(20, EditorTextBox.FontSize * 1.5);
+        var targetLines = (int)Math.Round((viewportHeight * 0.38) / lineHeight);
+        var lineCount = Math.Clamp(targetLines, MinNewEntryLeadingLines, MaxNewEntryLeadingLines);
+        return new string('\n', lineCount);
+    }
 
     private void AppendTranscriptToEditor(string transcript)
     {
