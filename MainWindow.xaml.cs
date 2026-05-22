@@ -836,6 +836,7 @@ public partial class MainWindow : Window
             ? new SolidColorBrush(Color.FromRgb(230, 230, 230))
             : new SolidColorBrush(Color.FromRgb(51, 51, 51));
         EditorSurface.ApplyDocumentTypography(EditorTextBox, fontFamily, _currentFontSize, fg);
+        UpdateFontSelectionStyles();
     }
 
     private void ApplyTheme()
@@ -922,6 +923,7 @@ public partial class MainWindow : Window
         {
             button.Foreground = soft;
         }
+        UpdateFontSelectionStyles();
         ConfirmDeleteButton.Foreground = _isDarkMode
             ? new SolidColorBrush(Color.FromRgb(255, 132, 132))
             : new SolidColorBrush(Color.FromRgb(150, 40, 40));
@@ -929,6 +931,39 @@ public partial class MainWindow : Window
         _settings.ColorScheme = _isDarkMode ? "dark" : "light";
         _settings.Save();
         RenderHistory();
+    }
+
+    private void UpdateFontSelectionStyles()
+    {
+        var soft = _isDarkMode
+            ? new SolidColorBrush(Color.FromRgb(140, 140, 140))
+            : new SolidColorBrush(Color.FromRgb(136, 136, 136));
+        var active = _isDarkMode
+            ? Brushes.White
+            : new SolidColorBrush(Color.FromRgb(34, 34, 34));
+
+        SetFontButtonState(LatoButton, IsSelectedFont("Lato"), soft, active);
+        SetFontButtonState(ArialButton, IsSelectedFont("Arial"), soft, active);
+        SetFontButtonState(SystemFontButton, IsSelectedFont("Segoe UI"), soft, active);
+        SetFontButtonState(SerifButton, IsSelectedFont("Times New Roman"), soft, active);
+        SetFontButtonState(RandomFontButton, IsRandomFontSelected(), soft, active);
+    }
+
+    private bool IsSelectedFont(string font)
+    {
+        return string.Equals(_selectedFont, font, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsRandomFontSelected()
+    {
+        return !string.IsNullOrEmpty(_currentRandomFont)
+            && string.Equals(_selectedFont, _currentRandomFont, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void SetFontButtonState(Button button, bool isSelected, Brush soft, Brush active)
+    {
+        button.Foreground = isSelected ? active : soft;
+        button.FontWeight = isSelected ? FontWeights.SemiBold : FontWeights.Normal;
     }
 
     private void ApplyDictationSliderTrackBrush()
