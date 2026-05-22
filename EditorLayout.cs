@@ -12,7 +12,7 @@ internal static class EditorLayout
     public const double TextPaddingRight = 48;
     public const double ScrollbarGutter = 28;
 
-    public static double LineHeightForFontSize(double fontSize) => fontSize * 1.5;
+    public static double LineHeightForFontSize(double fontSize) => fontSize * 1.28;
 
     public static double ResolveColumnWidth(double viewportWidth, double fallbackWidth)
     {

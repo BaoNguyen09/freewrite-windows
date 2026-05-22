@@ -7,10 +7,13 @@ namespace FreewriteWindows;
 
 internal static class EditorSurface
 {
+    private static readonly Thickness ZeroMargin = new(0);
+
     public static void EnsureDocument(RichTextBox editor)
     {
         if (editor.Document is not null)
         {
+            NormalizeBlockSpacing(editor.Document);
             return;
         }
 
@@ -19,6 +22,7 @@ internal static class EditorSurface
             PagePadding = new Thickness(0),
             TextAlignment = TextAlignment.Left,
         };
+        NormalizeBlockSpacing(editor.Document);
     }
 
     public static string GetText(RichTextBox editor)
@@ -60,6 +64,7 @@ internal static class EditorSurface
         document.FontSize = fontSize;
         document.LineHeight = EditorLayout.LineHeightForFontSize(fontSize);
         document.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
+        NormalizeBlockSpacing(document);
         if (foreground is not null)
         {
             document.Foreground = foreground;
@@ -71,5 +76,15 @@ internal static class EditorSurface
         var lineHeight = EditorLayout.LineHeightForFontSize(fontSize);
         placeholder.SetValue(Block.LineHeightProperty, lineHeight);
         placeholder.SetValue(Block.LineStackingStrategyProperty, LineStackingStrategy.BlockLineHeight);
+    }
+
+    private static void NormalizeBlockSpacing(FlowDocument document)
+    {
+        foreach (var block in document.Blocks)
+        {
+            block.Margin = ZeroMargin;
+            block.LineHeight = document.LineHeight;
+            block.LineStackingStrategy = document.LineStackingStrategy;
+        }
     }
 }
