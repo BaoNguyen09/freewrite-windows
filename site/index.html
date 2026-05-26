@@ -6,20 +6,44 @@
     <title>Freewrite for Windows</title>
     <meta
       name="description"
-      content="A native Windows port of Freewrite, a distraction-free journaling app for dumping thoughts fast."
+      content="A native Windows port of Freewrite — a distraction-free writing app for dumping thoughts fast."
     />
     <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACHElEQVR42rVXMZLCMAyUZVLS8CA+QcPH+AVP4Qn8gYIORvIVjHOKbiWb4jzDJI4VR5Z2V6KISCMzWvtMSymbZ31u7+3cX9G7aBTrQP/4fw/rEM8Y9x/awNpEa37Yg3J/4E/vw2hT423tul3ztn7PPxGwp/AbWgzMDuSon3MWKiIiVSURGYJpFH6fxj52Fr0IucuyrI6oKjEzjAJKTcSuDQbsA+uhqlIpha7XK10ul5Bm0ce9rU/h+lxEGuKyqtKyLHQ6neh2u9H9fqdaK/mIofssGl5PGAmKHfv9ng6Hwx9gZqBEEY0ixRYgfWP7ooiQiKR5tu+jU6Lo9Cv7U3VOz4YwkusRGNcUIM5ntPSbpToPMOHteYbP0XoExui0CB88kt6Zk3d7VC9QWqyzjPgdqda3ZTtKk13jkfGsokUAzArSCkK/wTcsiJz21I7SxxFKR+j2CM/KcBSl1tqWht+kIYsQEhy090aKLfBGNR81FiO0IwHb9AOeSt/QcLb5QJHl6PR9XmulWitlRSvqF31t8akppdAuola/Pp9PejwesOQip1DeETD7/Q6FqbVGzJ/snM9nOh6PmyjMdj9ZTVgj3xuSCM39w6qailD0gaxWlFJ+dSDK3/v9ptfrlSrbTAcdSvcoAqOeb9QXjqg5/GeUeZ/RbMbpDQ0jGY5qf7Tu27ORsnJUJkfdbaQLXtAiZ2BD4vuAjPsz5TbKv7X5AdGlvKGQ3+O5AAAAAElFTkSuQmCC" />
     <link rel="icon" type="image/png" sizes="16x16" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAArElEQVR42pWTQQrEIBRDk4DQm/SevaLgPdwVtP5ZtWPtOPy6FPNiop/HcRgAmBneLJIAAI3i1poLcGrUi0kihHDRPRD1YjNDjBGlFDfkBqi1Yts25JwhydWLxo1lWdzuD8AZY3SeAUl+Ab1wFMyiPEqcvfXfCP0hr/MN4M3ruoGZYd/3aRc/i6y1Wg9IKWFdV4QQXBFuAJKQhNaae7geEUopbvH1D3qIpFfj/AGxkGnAEfE8GQAAAABJRU5ErkJggg==" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet" />
     <style>
       :root {
         color-scheme: dark;
-        --bg: #000000;
-        --fg: #f4f4f4;
-        --muted: #a3a3a3;
-        --line: #242424;
-        --panel: #151515;
+        --page-bg: #0a0a0a;
+        --page-fg: #f2f2f2;
+        --muted: #9a9a9a;
+        --line: #2a2a2a;
+        --demo-bg: #3a3a3a;
+        --demo-fg: #ececec;
+        --demo-muted: #8f8f8f;
+        --demo-toolbar: #3a3a3a;
+        --demo-active: #ffffff;
+        --demo-border: #2e2e2e;
+        --font-size: 18px;
+        --font-family: "Lato", Arial, sans-serif;
+      }
+
+      html[data-theme="light"] {
+        color-scheme: light;
+        --page-bg: #f5f5f5;
+        --page-fg: #111111;
+        --muted: #666666;
+        --line: #dddddd;
+        --demo-bg: #ffffff;
+        --demo-fg: #1a1a1a;
+        --demo-muted: #999999;
+        --demo-toolbar: #fafafa;
+        --demo-active: #111111;
+        --demo-border: #e5e5e5;
       }
 
       * {
@@ -29,190 +53,350 @@
       body {
         margin: 0;
         min-height: 100vh;
-        background: var(--bg);
-        color: var(--fg);
+        background: var(--page-bg);
+        color: var(--page-fg);
         font-family: Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        transition: background 0.2s ease, color 0.2s ease;
       }
 
       main {
-        width: min(780px, calc(100vw - 36px));
+        width: min(920px, calc(100vw - 32px));
         margin: 0 auto;
-        padding: 72px 0 48px;
+        padding: 56px 0 40px;
       }
 
-      .hero {
-        min-height: 58vh;
+      .intro {
         display: grid;
-        align-content: center;
-        gap: 24px;
+        gap: 16px;
+        margin-bottom: 36px;
       }
 
       h1 {
         margin: 0;
-        font-size: clamp(34px, 6vw, 56px);
-        line-height: 1.05;
+        font-size: clamp(28px, 5vw, 44px);
+        line-height: 1.1;
         font-weight: 700;
-        letter-spacing: 0;
+        letter-spacing: -0.02em;
       }
 
-      p {
+      .tagline {
         margin: 0;
+        font-size: 18px;
+        line-height: 1.5;
         color: var(--muted);
-        font-size: 19px;
-        line-height: 1.55;
-        max-width: 680px;
-      }
-
-      .lead {
-        color: var(--fg);
+        max-width: 560px;
       }
 
       .actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 18px;
+        margin-top: 4px;
       }
 
       a {
         color: inherit;
       }
 
-      .button {
+      .link {
         display: inline-flex;
         align-items: center;
-        min-height: 36px;
-        padding: 0;
-        border: 0;
-        text-decoration: none;
+        gap: 6px;
         font-size: 16px;
-        font-weight: 400;
+        text-decoration: none;
       }
 
-      .button::after {
+      .link::after {
         content: "→";
-        margin-left: 8px;
       }
 
-      .button.secondary {
+      .link.secondary {
         color: var(--muted);
       }
 
-      .preview {
-        margin: 36px 0 28px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #202020;
-        min-height: 310px;
-        padding: 42px clamp(24px, 8vw, 82px) 22px;
+      .demo {
+        border: 1px solid var(--demo-border);
+        border-radius: 10px;
         overflow: hidden;
+        background: var(--demo-bg);
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+        transition: background 0.2s ease, border-color 0.2s ease;
       }
 
-      .preview-text {
-        color: #f1f1f1;
-        font-size: clamp(18px, 2.4vw, 25px);
-        line-height: 1.42;
-        max-width: 760px;
+      .demo-body {
+        position: relative;
+        min-height: min(62vh, 520px);
       }
 
-      .preview-nav {
-        display: flex;
-        justify-content: space-between;
-        gap: 20px;
-        margin-top: 42px;
-        color: #9c9c9c;
-        font-size: 13px;
-        white-space: nowrap;
-      }
-
-      .details {
+      .demo-placeholder {
+        position: absolute;
+        inset: 0;
         display: grid;
-        gap: 10px;
-        margin: 24px 0 42px;
+        place-items: center;
+        color: var(--demo-muted);
+        font-size: clamp(20px, 3vw, 28px);
+        pointer-events: none;
+        user-select: none;
+        transition: opacity 0.15s ease;
       }
 
-      .card {
-        padding: 0;
+      .demo-placeholder.hidden {
+        opacity: 0;
       }
 
-      .card h2 {
-        margin: 0 0 4px;
-        font-size: 16px;
-      }
-
-      .card p {
-        font-size: 15px;
+      .demo-input {
+        width: 100%;
+        min-height: min(62vh, 520px);
+        padding: 28px clamp(20px, 5vw, 48px) 72px;
+        border: 0;
+        resize: none;
+        background: transparent;
+        color: var(--demo-fg);
+        font-size: var(--font-size, 18px);
         line-height: 1.5;
+        font-family: var(--font-family, "Lato", Arial, sans-serif);
+        outline: none;
+        caret-color: var(--demo-fg);
+      }
+
+      .demo-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 0;
+        padding: 10px clamp(12px, 3vw, 20px);
+        border-top: 1px solid var(--demo-border);
+        background: var(--demo-toolbar);
+        color: var(--demo-muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .demo-toolbar .group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .demo-toolbar .group.right {
+        margin-left: auto;
+      }
+
+      .sep {
+        margin: 0 6px;
+        opacity: 0.55;
+        user-select: none;
+      }
+
+      .tool {
+        border: 0;
+        padding: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+        transition: color 0.15s ease;
+      }
+
+      .tool:hover {
+        color: var(--demo-fg);
+      }
+
+      .tool.active {
+        color: var(--demo-active);
+        font-weight: 700;
+      }
+
+      .tool.static {
+        cursor: default;
+        pointer-events: none;
+      }
+
+      .notes {
+        display: grid;
+        gap: 8px;
+        margin: 32px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+
+      .notes p {
+        margin: 0;
       }
 
       footer {
+        margin-top: 40px;
+        padding-top: 16px;
         border-top: 1px solid var(--line);
-        padding-top: 18px;
         color: var(--muted);
         font-size: 13px;
         line-height: 1.5;
       }
 
-      @media (max-width: 760px) {
+      .noscript-shot {
+        display: block;
+        width: 100%;
+        margin-top: 16px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+      }
+
+      @media (max-width: 720px) {
         main {
-          width: min(100vw - 28px, 960px);
-          padding-top: 48px;
+          padding-top: 36px;
         }
 
-        .preview {
-          padding-top: 28px;
-          min-height: 260px;
-        }
-
-        .preview-nav {
+        .demo-toolbar .hide-mobile {
           display: none;
+        }
+
+        .demo-toolbar .group.right {
+          margin-left: 0;
+          width: 100%;
         }
       }
     </style>
   </head>
   <body>
     <main>
-      <section class="hero">
-        <div>
-          <h1>hi, this is freewrite for windows.</h1>
-          <p class="lead">one simple, clean place to write continuously without distraction.</p>
-        </div>
-        <p>
-          local markdown files. native windows app. dark mode, history, export, fullscreen, and a folder you control.
+      <section class="intro">
+        <h1>Freewrite for Windows</h1>
+        <p class="tagline">
+          A native port of
+          <a href="https://freewrite.io/">Freewrite</a>.
+          One quiet place to write without distraction.
         </p>
         <div class="actions">
-          <a class="button" href="https://github.com/BaoNguyen09/freewrite-windows/releases/latest">download windows beta</a>
-          <a class="button secondary" href="https://github.com/BaoNguyen09/freewrite-windows">source</a>
+          <a class="link" href="https://github.com/BaoNguyen09/freewrite-windows/releases/latest">Download beta</a>
+          <a class="link secondary" href="https://github.com/BaoNguyen09/freewrite-windows">Source</a>
         </div>
       </section>
 
-      <section class="preview" aria-label="Freewrite app preview">
-        <div class="preview-text">
-          this is a quiet writing surface. set a timer, dump the thoughts, and keep moving. everything saves locally as markdown.
+      <section class="demo" aria-label="Try the editor">
+        <div class="demo-body">
+          <div class="demo-placeholder" id="placeholder">Start typing</div>
+          <textarea
+            class="demo-input"
+            id="editor"
+            spellcheck="false"
+            aria-label="Demo writing surface"
+          ></textarea>
         </div>
-        <div class="preview-nav">
-          <span>18px • Lato • Arial • System • Serif • Random</span>
-          <span>15:00 • Talk • Chat • Fullscreen • New Entry</span>
+        <div class="demo-toolbar" aria-label="Editor controls">
+          <div class="group">
+            <button type="button" class="tool" data-size="16">16px</button>
+            <span class="sep">•</span>
+            <button type="button" class="tool active" data-size="18">18px</button>
+            <span class="sep">•</span>
+            <button type="button" class="tool" data-size="20">20px</button>
+            <span class="sep">•</span>
+            <button type="button" class="tool" data-size="22">22px</button>
+            <span class="sep hide-mobile">•</span>
+            <button type="button" class="tool active" data-font="Lato">Lato</button>
+            <span class="sep">•</span>
+            <button type="button" class="tool" data-font="Arial">Arial</button>
+            <span class="sep">•</span>
+            <button type="button" class="tool" data-font="System">System</button>
+            <span class="sep hide-mobile">•</span>
+            <button type="button" class="tool" data-font="Serif">Serif</button>
+            <span class="sep hide-mobile">•</span>
+            <button type="button" class="tool" data-font="Random">Random</button>
+          </div>
+          <div class="group right">
+            <span class="tool static hide-mobile">15:00</span>
+            <span class="sep hide-mobile">•</span>
+            <span class="tool static hide-mobile">Backspace is On</span>
+            <span class="sep">•</span>
+            <button type="button" class="tool" id="theme-toggle">Light Mode</button>
+          </div>
         </div>
       </section>
 
-      <section class="details" aria-label="Highlights">
-        <article class="card">
-          <h2>all local.</h2>
-          <p>entries are saved as markdown files in the folder you choose.</p>
-        </article>
-        <article class="card">
-          <h2>native windows.</h2>
-          <p>built with wpf and .net. not an electron wrapper.</p>
-        </article>
-        <article class="card">
-          <h2>open-source.</h2>
-          <p>unofficial port of farza's freewrite. mit licensed.</p>
-        </article>
+      <noscript>
+        <img
+          class="noscript-shot"
+          src="img/editor-screenshot.png"
+          alt="Freewrite for Windows editor in dark mode"
+          width="1200"
+          height="675"
+        />
+      </noscript>
+
+      <section class="notes">
+        <p>Entries save locally as Markdown. You pick the folder.</p>
+        <p>Built with WPF and .NET — not Electron.</p>
+        <p>Unofficial port. MIT licensed.</p>
       </section>
 
       <footer>
-        beta note: this build is unsigned, so windows smartscreen may warn before running it.
+        Beta build is unsigned. Windows SmartScreen may warn before launch — choose More info, then Run anyway.
       </footer>
     </main>
+
+    <script>
+      const root = document.documentElement;
+      const editor = document.getElementById("editor");
+      const placeholder = document.getElementById("placeholder");
+      const themeToggle = document.getElementById("theme-toggle");
+      const sizeButtons = document.querySelectorAll("[data-size]");
+      const fontButtons = document.querySelectorAll("[data-font]");
+
+      const fontMap = {
+        Lato: '"Lato", Arial, sans-serif',
+        Arial: 'Arial, Helvetica, sans-serif',
+        System: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+        Serif: 'Georgia, "Times New Roman", serif',
+      };
+
+      const randomFonts = Object.keys(fontMap);
+
+      function setActive(buttons, activeButton) {
+        buttons.forEach((btn) => btn.classList.toggle("active", btn === activeButton));
+      }
+
+      function updatePlaceholder() {
+        placeholder.classList.toggle("hidden", editor.value.trim().length > 0);
+      }
+
+      sizeButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          root.style.setProperty("--font-size", `${btn.dataset.size}px`);
+          setActive(sizeButtons, btn);
+          editor.focus();
+        });
+      });
+
+      fontButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          let name = btn.dataset.font;
+          if (name === "Random") {
+            const choices = randomFonts.filter((f) => f !== "Random");
+            name = choices[Math.floor(Math.random() * choices.length)];
+            fontButtons.forEach((b) => {
+              if (b.dataset.font === name) setActive(fontButtons, b);
+            });
+          } else {
+            setActive(fontButtons, btn);
+          }
+          root.style.setProperty("--font-family", fontMap[name]);
+          editor.focus();
+        });
+      });
+
+      themeToggle.addEventListener("click", () => {
+        const light = root.dataset.theme === "light";
+        if (light) {
+          delete root.dataset.theme;
+          themeToggle.textContent = "Light Mode";
+        } else {
+          root.dataset.theme = "light";
+          themeToggle.textContent = "Dark Mode";
+        }
+      });
+
+      editor.addEventListener("input", updatePlaceholder);
+      editor.focus();
+    </script>
   </body>
 </html>
