@@ -6,8 +6,10 @@
     <title>Freewrite for Windows</title>
     <meta
       name="description"
-      content="A native Windows port of Freewrite, a distraction-free writing app for dumping thoughts fast."
+      content="Unofficial native Windows port of Freewrite. Open source, not affiliated with freewrite.io. Downloads hosted on GitHub Releases."
     />
+    <link rel="canonical" href="https://freewrite.thienbao.dev/" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACHElEQVR42rVXMZLCMAyUZVLS8CA+QcPH+AVP4Qn8gYIORvIVjHOKbiWb4jzDJI4VR5Z2V6KISCMzWvtMSymbZ31u7+3cX9G7aBTrQP/4fw/rEM8Y9x/awNpEa37Yg3J/4E/vw2hT423tul3ztn7PPxGwp/AbWgzMDuSon3MWKiIiVSURGYJpFH6fxj52Fr0IucuyrI6oKjEzjAJKTcSuDQbsA+uhqlIpha7XK10ul5Bm0ce9rU/h+lxEGuKyqtKyLHQ6neh2u9H9fqdaK/mIofssGl5PGAmKHfv9ng6Hwx9gZqBEEY0ixRYgfWP7ooiQiKR5tu+jU6Lo9Cv7U3VOz4YwkusRGNcUIM5ntPSbpToPMOHteYbP0XoExui0CB88kt6Zk3d7VC9QWqyzjPgdqda3ZTtKk13jkfGsokUAzArSCkK/wTcsiJz21I7SxxFKR+j2CM/KcBSl1tqWht+kIYsQEhy090aKLfBGNR81FiO0IwHb9AOeSt/QcLb5QJHl6PR9XmulWitlRSvqF31t8akppdAuola/Pp9PejwesOQip1DeETD7/Q6FqbVGzJ/snM9nOh6PmyjMdj9ZTVgj3xuSCM39w6qailD0gaxWlFJ+dSDK3/v9ptfrlSrbTAcdSvcoAqOeb9QXjqg5/GeUeZ/RbMbpDQ0jGY5qf7Tu27ORsnJUJkfdbaQLXtAiZ2BD4vuAjPsz5TbKv7X5AdGlvKGQ3+O5AAAAAElFTkSuQmCC" />
     <link rel="icon" type="image/png" sizes="16x16" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAArElEQVR42pWTQQrEIBRDk4DQm/SevaLgPdwVtP5ZtWPtOPy6FPNiop/HcRgAmBneLJIAAI3i1poLcGrUi0kihHDRPRD1YjNDjBGlFDfkBqi1Yts25JwhydWLxo1lWdzuD8AZY3SeAUl+Ab1wFMyiPEqcvfXfCP0hr/MN4M3ruoGZYd/3aRc/i6y1Wg9IKWFdV4QQXBFuAJKQhNaae7geEUopbvH1D3qIpFfj/AGxkGnAEfE8GQAAAABJRU5ErkJggg==" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -62,6 +64,18 @@
         line-height: 1.5;
         color: var(--muted);
         max-width: 560px;
+      }
+
+      .disclaimer {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--muted);
+        max-width: 560px;
+      }
+
+      .disclaimer a {
+        color: var(--page-fg);
       }
 
       .actions {
@@ -454,12 +468,27 @@
         <h1>Freewrite for Windows</h1>
         <p class="tagline">
           A native port of
-          <a href="https://freewrite.io/">Freewrite</a>.
+          <a href="https://freewrite.io/" rel="noopener noreferrer">Freewrite</a>.
           One quiet place to write without distraction.
         </p>
+        <p class="disclaimer">
+          Unofficial community project. Not affiliated with
+          <a href="https://freewrite.io/" rel="noopener noreferrer">freewrite.io</a>
+          or Astrohaus. Downloads are hosted on GitHub Releases only.
+        </p>
         <div class="actions">
-          <a class="link primary" href="https://github.com/BaoNguyen09/freewrite-windows/releases/latest">Download beta</a>
-          <a class="link secondary" href="https://github.com/BaoNguyen09/freewrite-windows">Source</a>
+          <a
+            class="link primary"
+            href="https://github.com/BaoNguyen09/freewrite-windows/releases/latest"
+            rel="noopener noreferrer"
+            >Download beta</a
+          >
+          <a
+            class="link secondary"
+            href="https://github.com/BaoNguyen09/freewrite-windows"
+            rel="noopener noreferrer"
+            >Source</a
+          >
         </div>
       </section>
 

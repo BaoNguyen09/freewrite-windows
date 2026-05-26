@@ -1,0 +1,4 @@
+Contact: https://github.com/BaoNguyen09/freewrite-windows/issues
+Preferred-Languages: en
+Canonical: https://freewrite.thienbao.dev/.well-known/security.txt
+Policy: Unofficial open-source port of Freewrite for Windows. Downloads are served from GitHub Releases only.
