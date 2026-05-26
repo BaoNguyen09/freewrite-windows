@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Freewrite for Windows</title>
+    <meta
+      name="description"
+      content="A native Windows port of Freewrite, a distraction-free journaling app for dumping thoughts fast."
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050505;
+        --fg: #f4f4f4;
+        --muted: #9b9b9b;
+        --line: #282828;
+        --panel: #111111;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: Lato, Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(960px, calc(100vw - 40px));
+        margin: 0 auto;
+        padding: 80px 0 56px;
+      }
+
+      .hero {
+        min-height: 64vh;
+        display: grid;
+        align-content: center;
+        gap: 28px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(44px, 8vw, 88px);
+        line-height: 0.95;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.6;
+        max-width: 640px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        min-height: 42px;
+        padding: 0 16px;
+        border: 1px solid var(--fg);
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .button.secondary {
+        border-color: var(--line);
+        color: var(--muted);
+      }
+
+      .details {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 28px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 18px;
+      }
+
+      .card h2 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+
+      .card p {
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      footer {
+        border-top: 1px solid var(--line);
+        padding-top: 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 760px) {
+        main {
+          width: min(100vw - 28px, 960px);
+          padding-top: 48px;
+        }
+
+        .details {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <div>
+          <h1>Freewrite for Windows</h1>
+          <p>
+            A native Windows port of Freewrite, built for fast local journaling with markdown files, a quiet writing surface, history, export, and fullscreen focus.
+          </p>
+        </div>
+        <div class="actions">
+          <a class="button" href="https://github.com/BaoNguyen09/freewrite-windows/releases/latest">Download for Windows</a>
+          <a class="button secondary" href="https://github.com/BaoNguyen09/freewrite-windows">View source</a>
+        </div>
+      </section>
+
+      <section class="details" aria-label="Highlights">
+        <article class="card">
+          <h2>Local first</h2>
+          <p>Entries are saved as markdown files in the folder you choose. No account, no cloud sync, no server upload.</p>
+        </article>
+        <article class="card">
+          <h2>Native Windows</h2>
+          <p>Built with WPF and .NET for a real desktop app, not a web wrapper.</p>
+        </article>
+        <article class="card">
+          <h2>Beta release</h2>
+          <p>The first public build is unsigned, so Windows SmartScreen may warn before running it.</p>
+        </article>
+      </section>
+
+      <footer>
+        Unofficial Windows port of Farza Majeed's Freewrite. Original project licensed MIT.
+      </footer>
+    </main>
+  </body>
+</html>

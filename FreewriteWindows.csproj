@@ -7,6 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AssemblyName>FreewriteWindows</AssemblyName>
+    <Version>0.1.0-beta.1</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Authors>Thien Bao Nguyen; Farza Majeed</Authors>
+    <Description>Unofficial native Windows port of Freewrite, a distraction-free journaling app.</Description>
+    <RepositoryUrl>https://github.com/BaoNguyen09/freewrite-windows</RepositoryUrl>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
