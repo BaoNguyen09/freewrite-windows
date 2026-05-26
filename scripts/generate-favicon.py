@@ -1,4 +1,4 @@
-"""Generate site and app icons from getfreewrite.com official artwork."""
+"""Generate site and app icons from freewrite.io official favicon."""
 from __future__ import annotations
 
 import urllib.request
@@ -6,27 +6,15 @@ from pathlib import Path
 
 from PIL import Image
 
-SOURCE_URL = (
-    "https://getfreewrite.com/cdn/shop/files/"
-    "Freewrite_F_Modified_180x180.png?v=1613582291"
-)
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
+SOURCE_URL = "https://framerusercontent.com/images/Kg6A4mdqHKGu0ODXGhebtMoh00.png"
 
 
 def load_source(root: Path) -> Image.Image:
-    bundled = root / "Resources" / "website-icon.png"
-    if bundled.exists():
-        return Image.open(bundled).convert("RGBA")
-
-    request = urllib.request.Request(SOURCE_URL, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        data = response.read()
-    bundled.parent.mkdir(parents=True, exist_ok=True)
-    bundled.write_bytes(data)
-    return Image.open(bundled).convert("RGBA")
+    source_path = root / "Resources" / "app-icon-source.png"
+    if not source_path.exists():
+        source_path.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(SOURCE_URL, source_path)
+    return Image.open(source_path).convert("RGBA")
 
 
 def write_png(img: Image.Image, path: Path) -> None:
@@ -47,12 +35,9 @@ def main() -> None:
     res = root / "Resources"
 
     base = load_source(root)
-    # Flatten transparency onto dark gray so favicons read well on browser chrome.
-    flat = Image.new("RGBA", base.size, "#1c1c1c")
-    flat.alpha_composite(base)
-    base = flat
+    # Upscale source for sharper ICO generation.
+    base = base.resize((512, 512), Image.Resampling.LANCZOS)
 
-    write_png(base, res / "app-icon-source.png")
     write_png(base.resize((32, 32), Image.Resampling.LANCZOS), site_icons / "icon-32.png")
     write_png(base.resize((16, 16), Image.Resampling.LANCZOS), site_icons / "icon-16.png")
     write_png(base.resize((180, 180), Image.Resampling.LANCZOS), site_icons / "apple-touch-icon.png")
@@ -60,7 +45,7 @@ def main() -> None:
     write_ico(base, root / "site" / "favicon.ico")
     write_ico(base, res / "app.ico")
 
-    print("Generated icons from getfreewrite.com artwork in", site_icons)
+    print("Generated icons from freewrite.io in", site_icons)
 
 
 if __name__ == "__main__":
