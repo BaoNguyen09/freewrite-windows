@@ -37,7 +37,7 @@
       }
 
       main {
-        width: min(920px, calc(100vw - 32px));
+        width: min(1080px, calc(100vw - 32px));
         margin: 0 auto;
         padding: 56px 0 40px;
       }
@@ -124,9 +124,18 @@
         --demo-row-active: #ececec;
       }
 
+      .demo-shell {
+        position: relative;
+        overflow: hidden;
+      }
+
       .demo-body {
         position: relative;
         min-height: min(62vh, 520px);
+      }
+
+      .demo.demo-sidebar-open .demo-body {
+        padding-right: 0;
       }
 
       .demo-placeholder {
@@ -161,17 +170,15 @@
       }
 
       .demo-toolbar {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 8px;
+        display: flex;
         align-items: center;
-        padding: 10px 12px 10px 16px;
+        gap: 12px;
+        padding: 10px 16px;
         border-top: 1px solid var(--demo-border);
         background: var(--demo-bg);
         color: var(--demo-soft);
         font-size: 13px;
         line-height: 1.4;
-        overflow-x: auto;
       }
 
       .demo-toolbar .scroll {
@@ -180,11 +187,22 @@
         align-items: center;
         gap: 0;
         min-width: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .demo-toolbar .scroll::-webkit-scrollbar {
+        display: none;
+      }
+
+      .demo-toolbar .scroll.left {
+        flex: 1 1 auto;
       }
 
       .demo-toolbar .scroll.right {
+        flex: 0 1 auto;
         justify-content: flex-end;
-        padding-right: 6px;
+        max-width: 52%;
       }
 
       .sep {
@@ -218,8 +236,46 @@
       }
 
       .tool.placeholder {
-        cursor: default;
+        cursor: help;
         opacity: 0.85;
+      }
+
+      .tool[data-tip] {
+        position: relative;
+      }
+
+      .tool[data-tip]:hover::after,
+      .tool[data-tip]:focus-visible::after {
+        content: attr(data-tip);
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 10px);
+        transform: translateX(-50%);
+        width: max-content;
+        max-width: 220px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: #111111;
+        color: #f5f5f5;
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.4;
+        white-space: normal;
+        text-align: center;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        z-index: 20;
+        pointer-events: none;
+      }
+
+      .demo.light .tool[data-tip]:hover::after,
+      .demo.light .tool[data-tip]:focus-visible::after {
+        background: #222222;
+      }
+
+      #random-font-btn {
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .history-icon {
@@ -245,17 +301,28 @@
         top: 0;
         right: 0;
         bottom: 0;
-        width: min(248px, 78vw);
+        width: 248px;
+        max-width: 85%;
         background: var(--demo-sidebar-bg);
         border-left: 1px solid var(--demo-sidebar-line);
-        box-shadow: -8px 0 24px rgba(0, 0, 0, 0.2);
-        z-index: 5;
-        display: none;
+        box-shadow: -10px 0 28px rgba(0, 0, 0, 0.28);
+        z-index: 6;
+        display: flex;
         flex-direction: column;
+        transform: translateX(100%);
+        visibility: hidden;
+        pointer-events: none;
+        transition: transform 0.2s ease, visibility 0.2s ease;
       }
 
       .demo-sidebar.open {
-        display: flex;
+        transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      .demo.demo-sidebar-open .demo-input {
+        padding-right: clamp(20px, 5vw, 48px);
       }
 
       .sidebar-head {
@@ -289,10 +356,17 @@
       }
 
       .history-row {
+        display: block;
+        width: calc(100% - 12px);
         margin: 2px 6px;
         padding: 8px 10px;
+        border: 0;
         border-radius: 4px;
+        background: transparent;
+        color: inherit;
+        text-align: left;
         cursor: pointer;
+        font: inherit;
       }
 
       .history-row:hover {
@@ -340,7 +414,21 @@
         line-height: 1.5;
       }
 
-      .noscript-shot {
+      .demo:fullscreen {
+        border-radius: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .demo:fullscreen .demo-shell {
+        flex: 1;
+      }
+
+      .demo:fullscreen .demo-body,
+      .demo:fullscreen .demo-input {
+        min-height: 100%;
+      }
         display: block;
         width: 100%;
         margin-top: 16px;
@@ -354,12 +442,17 @@
         }
 
         .demo-toolbar {
-          grid-template-columns: 1fr;
+          flex-direction: column;
+          align-items: stretch;
         }
 
         .demo-toolbar .scroll.right {
+          max-width: none;
           justify-content: flex-start;
-          padding-right: 0;
+        }
+
+        .demo-sidebar {
+          width: min(248px, 92%);
         }
       }
     </style>
@@ -381,12 +474,31 @@
 
       <div class="demo-wrap">
         <section class="demo" id="demo" aria-label="Try the editor">
-          <div class="demo-body">
-            <div class="demo-placeholder" id="placeholder">Start typing</div>
-            <textarea class="demo-input" id="editor" spellcheck="false" aria-label="Demo writing surface"></textarea>
+          <div class="demo-shell">
+            <div class="demo-body">
+              <div class="demo-placeholder" id="placeholder">Start typing</div>
+              <textarea class="demo-input" id="editor" spellcheck="false" aria-label="Demo writing surface"></textarea>
+            </div>
+
+            <aside class="demo-sidebar" id="history-panel" aria-label="Entry history">
+              <div class="sidebar-head">
+                <h2>Entries</h2>
+                <button
+                  type="button"
+                  class="tool placeholder"
+                  style="font-size: 12px"
+                  data-tip="Demo only. In the app, this opens your entries folder on disk."
+                >
+                  Folder
+                </button>
+                <button type="button" class="sidebar-close" id="history-close" aria-label="Close history">x</button>
+              </div>
+              <div class="sidebar-list" id="history-list"></div>
+            </aside>
           </div>
+
           <div class="demo-toolbar" aria-label="Editor controls">
-            <div class="scroll">
+            <div class="scroll left">
               <button type="button" class="tool" id="font-size-btn">18px</button>
               <span class="sep">&bull;</span>
               <button type="button" class="tool active" data-font="Lato">Lato</button>
@@ -400,21 +512,33 @@
               <button type="button" class="tool" id="random-font-btn" data-font="Random">Random</button>
             </div>
             <div class="scroll right">
-              <button type="button" class="tool" id="timer-btn">15:00</button>
+              <button type="button" class="tool" id="timer-btn" data-tip="Click to start or stop. Double-click to reset. Scroll to change minutes.">15:00</button>
               <span class="sep">&bull;</span>
-              <button type="button" class="tool placeholder">Talk</button>
+              <button
+                type="button"
+                class="tool placeholder"
+                data-tip="Demo only. Talk records audio and transcribes locally in the Windows app."
+              >
+                Talk
+              </button>
               <span class="sep">&bull;</span>
-              <button type="button" class="tool placeholder">Chat</button>
+              <button
+                type="button"
+                class="tool placeholder"
+                data-tip="Demo only. Chat opens your writing in ChatGPT or Claude from the app."
+              >
+                Chat
+              </button>
               <span class="sep">&bull;</span>
               <button type="button" class="tool" id="backspace-btn">Backspace is On</button>
               <span class="sep">&bull;</span>
-              <button type="button" class="tool placeholder">Fullscreen</button>
+              <button type="button" class="tool" id="fullscreen-btn" data-tip="Fullscreen this demo editor.">Fullscreen</button>
               <span class="sep">&bull;</span>
-              <button type="button" class="tool placeholder">New Entry</button>
+              <button type="button" class="tool" id="new-entry-btn" data-tip="Clear the demo and start a fresh entry.">New Entry</button>
               <span class="sep">&bull;</span>
               <button type="button" class="tool" id="theme-btn">Light Mode</button>
               <span class="sep">&bull;</span>
-              <button type="button" class="tool history-icon" id="history-btn" aria-label="History" title="History">
+              <button type="button" class="tool history-icon" id="history-btn" aria-label="History" data-tip="Open sample entry history.">
                 <svg viewBox="0 0 16 16" aria-hidden="true">
                   <circle cx="8" cy="8" r="6.5" />
                   <path d="M8 4.5 L8 8 L10.8 9.8" />
@@ -423,15 +547,6 @@
             </div>
           </div>
         </section>
-
-        <aside class="demo-sidebar" id="history-panel" aria-label="Entry history">
-          <div class="sidebar-head">
-            <h2>Entries</h2>
-            <button type="button" class="tool placeholder" style="font-size: 12px">Folder</button>
-            <button type="button" class="sidebar-close" id="history-close" aria-label="Close history">x</button>
-          </div>
-          <div class="sidebar-list" id="history-list"></div>
-        </aside>
       </div>
 
       <noscript>
@@ -469,6 +584,8 @@
       const historyPanel = document.getElementById("history-panel");
       const historyClose = document.getElementById("history-close");
       const historyList = document.getElementById("history-list");
+      const newEntryBtn = document.getElementById("new-entry-btn");
+      const fullscreenBtn = document.getElementById("fullscreen-btn");
 
       const fontSizes = [16, 18, 20, 22, 24, 26];
       const fontMap = {
@@ -553,6 +670,27 @@
         updateTimerDisplay();
       }
 
+      function setHistoryOpen(open) {
+        historyPanel.classList.toggle("open", open);
+        demo.classList.toggle("demo-sidebar-open", open);
+      }
+
+      function newDemoEntry() {
+        editor.value = "";
+        updatePlaceholder();
+        stopTimer();
+        resetTimer();
+        editor.focus();
+      }
+
+      function toggleDemoFullscreen() {
+        if (!document.fullscreenElement) {
+          demo.requestFullscreen?.().catch(() => {});
+          return;
+        }
+        document.exitFullscreen?.();
+      }
+
       function renderHistory() {
         historyList.innerHTML = "";
         sampleEntries.forEach((entry, index) => {
@@ -568,6 +706,9 @@
           row.addEventListener("click", () => {
             historyList.querySelectorAll(".history-row").forEach((el) => el.classList.remove("active"));
             row.classList.add("active");
+            editor.value = entry.preview === "Empty entry" ? "" : entry.preview;
+            updatePlaceholder();
+            editor.focus();
           });
           historyList.appendChild(row);
         });
@@ -646,11 +787,18 @@
       });
 
       historyBtn.addEventListener("click", () => {
-        historyPanel.classList.add("open");
+        setHistoryOpen(true);
       });
 
       historyClose.addEventListener("click", () => {
-        historyPanel.classList.remove("open");
+        setHistoryOpen(false);
+      });
+
+      newEntryBtn.addEventListener("click", newDemoEntry);
+      fullscreenBtn.addEventListener("click", toggleDemoFullscreen);
+
+      document.addEventListener("fullscreenchange", () => {
+        fullscreenBtn.textContent = document.fullscreenElement ? "Exit Fullscreen" : "Fullscreen";
       });
 
       editor.addEventListener("keydown", (e) => {
