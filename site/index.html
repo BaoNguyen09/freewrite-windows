@@ -236,40 +236,29 @@
       }
 
       .tool.placeholder {
-        cursor: help;
+        cursor: default;
         opacity: 0.85;
       }
 
-      .tool[data-tip] {
-        position: relative;
-      }
-
-      .tool[data-tip]:hover::after,
-      .tool[data-tip]:focus-visible::after {
-        content: attr(data-tip);
-        position: absolute;
-        left: 50%;
-        bottom: calc(100% + 10px);
-        transform: translateX(-50%);
-        width: max-content;
-        max-width: 220px;
+      #demo-tip {
+        position: fixed;
+        z-index: 9999;
+        max-width: 240px;
         padding: 8px 10px;
         border-radius: 6px;
         background: #111111;
         color: #f5f5f5;
         font-size: 12px;
-        font-weight: 400;
         line-height: 1.4;
-        white-space: normal;
         text-align: center;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-        z-index: 20;
         pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.12s ease;
       }
 
-      .demo.light .tool[data-tip]:hover::after,
-      .demo.light .tool[data-tip]:focus-visible::after {
-        background: #222222;
+      #demo-tip.visible {
+        opacity: 1;
       }
 
       #random-font-btn {
@@ -429,6 +418,8 @@
       .demo:fullscreen .demo-input {
         min-height: 100%;
       }
+
+      .noscript-shot {
         display: block;
         width: 100%;
         margin-top: 16px;
@@ -487,7 +478,7 @@
                   type="button"
                   class="tool placeholder"
                   style="font-size: 12px"
-                  data-tip="Demo only. In the app, this opens your entries folder on disk."
+                  data-tip="Not available on the website."
                 >
                   Folder
                 </button>
@@ -517,7 +508,7 @@
               <button
                 type="button"
                 class="tool placeholder"
-                data-tip="Demo only. Talk records audio and transcribes locally in the Windows app."
+                data-tip="Not available on the website."
               >
                 Talk
               </button>
@@ -525,7 +516,7 @@
               <button
                 type="button"
                 class="tool placeholder"
-                data-tip="Demo only. Chat opens your writing in ChatGPT or Claude from the app."
+                data-tip="Not available on the website."
               >
                 Chat
               </button>
@@ -534,7 +525,7 @@
               <span class="sep">&bull;</span>
               <button type="button" class="tool" id="fullscreen-btn" data-tip="Fullscreen this demo editor.">Fullscreen</button>
               <span class="sep">&bull;</span>
-              <button type="button" class="tool" id="new-entry-btn" data-tip="Clear the demo and start a fresh entry.">New Entry</button>
+              <button type="button" class="tool" id="new-entry-btn" data-tip="Creates another entry for today.">New Entry</button>
               <span class="sep">&bull;</span>
               <button type="button" class="tool" id="theme-btn">Light Mode</button>
               <span class="sep">&bull;</span>
@@ -569,6 +560,7 @@
         Beta build is unsigned. Windows SmartScreen may warn before launch. Choose More info, then Run anyway.
       </footer>
     </main>
+    <div id="demo-tip" role="tooltip" hidden></div>
 
     <script>
       const demo = document.getElementById("demo");
@@ -586,6 +578,7 @@
       const historyList = document.getElementById("history-list");
       const newEntryBtn = document.getElementById("new-entry-btn");
       const fullscreenBtn = document.getElementById("fullscreen-btn");
+      const demoTip = document.getElementById("demo-tip");
 
       const fontSizes = [16, 18, 20, 22, 24, 26];
       const fontMap = {
@@ -595,6 +588,17 @@
         Serif: '"Times New Roman", Georgia, serif',
       };
       const randomPool = ["Courier New", "Georgia", "Verdana", "Trebuchet MS", "Palatino Linotype"];
+      const placeholderOptions = [
+        "Begin writing",
+        "Pick a thought and go",
+        "Start typing",
+        "What's on your mind",
+        "Just start",
+        "Type your first thought",
+        "Start with one sentence",
+        "Just say it",
+      ];
+      const newEntryLeadingSpacing = "\n\n\n";
 
       let fontSizeIndex = 1;
       let selectedFont = "Lato";
@@ -605,14 +609,64 @@
       let timerRunning = false;
       let timerInterval = null;
       let timerClickTimeout = null;
+      let entryCounter = 0;
+      let selectedEntryId = "";
 
-      const sampleEntries = [
-        { date: "May 25, 2026", preview: "What would change if I stopped optimizing for approval?" },
-        { date: "May 23, 2026", preview: "Three things I keep avoiding about the launch..." },
-        { date: "May 20, 2026", preview: "Morning freewrite. Still thinking about the conversation." },
-        { date: "May 18, 2026", preview: "Empty entry" },
-        { date: "May 14, 2026", preview: "Notes for the Windows port demo and landing page." },
+      const seededEntries = [
+        { date: "May 25, 2026", body: "What would change if I stopped optimizing for approval?" },
+        { date: "May 23, 2026", body: "Three things I keep avoiding about the launch..." },
+        { date: "May 20, 2026", body: "Morning freewrite. Still thinking about the conversation." },
+        { date: "May 18, 2026", body: "" },
+        { date: "May 14, 2026", body: "Notes for the Windows port demo and landing page." },
       ];
+
+      let entries = seededEntries.map((entry) => createEntry(entry.date, entry.body));
+
+      function createEntryId() {
+        entryCounter += 1;
+        return "demo-entry-" + entryCounter;
+      }
+
+      function createEntry(date, body) {
+        return {
+          id: createEntryId(),
+          date,
+          body,
+        };
+      }
+
+      function formatTodayLabel() {
+        return new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      }
+
+      function entryPreview(body) {
+        const trimmed = body.trim();
+        if (!trimmed) {
+          return "Empty entry";
+        }
+        const line = body.split(/\r?\n/).find((value) => value.trim());
+        return line ? line.trim() : "Empty entry";
+      }
+
+      function getSelectedEntry() {
+        return entries.find((entry) => entry.id === selectedEntryId) ?? entries[0];
+      }
+
+      function syncEditorToSelectedEntry() {
+        const entry = getSelectedEntry();
+        if (entry) {
+          entry.body = editor.value;
+        }
+      }
+
+      function moveCaretToEnd() {
+        const end = editor.value.length;
+        editor.setSelectionRange(end, end);
+      }
+
+      function pickPlaceholderText() {
+        return placeholderOptions[Math.floor(Math.random() * placeholderOptions.length)];
+      }
 
       function applyTypography() {
         editor.style.fontSize = fontSizes[fontSizeIndex] + "px";
@@ -675,12 +729,63 @@
         demo.classList.toggle("demo-sidebar-open", open);
       }
 
-      function newDemoEntry() {
-        editor.value = "";
+      function loadEntry(entry) {
+        syncEditorToSelectedEntry();
+        selectedEntryId = entry.id;
+        editor.value = entry.body;
         updatePlaceholder();
-        stopTimer();
-        resetTimer();
+        renderHistory();
         editor.focus();
+        moveCaretToEnd();
+      }
+
+      function updateActiveHistoryPreview() {
+        syncEditorToSelectedEntry();
+        const row = historyList.querySelector('[data-entry-id="' + selectedEntryId + '"] .history-preview');
+        if (row) {
+          row.textContent = entryPreview(editor.value);
+        }
+      }
+
+      function newDemoEntry() {
+        syncEditorToSelectedEntry();
+        const entry = createEntry(formatTodayLabel(), newEntryLeadingSpacing);
+        entries.unshift(entry);
+        selectedEntryId = entry.id;
+        editor.value = entry.body;
+        placeholder.textContent = pickPlaceholderText();
+        updatePlaceholder();
+        renderHistory();
+        editor.focus();
+        moveCaretToEnd();
+      }
+
+      function showDemoTip(btn) {
+        const text = btn.getAttribute("data-tip");
+        if (!text) {
+          return;
+        }
+        demoTip.textContent = text;
+        demoTip.hidden = false;
+        demoTip.classList.add("visible");
+        const rect = btn.getBoundingClientRect();
+        demoTip.style.left = rect.left + rect.width / 2 + "px";
+        demoTip.style.top = rect.top - 8 + "px";
+        demoTip.style.transform = "translate(-50%, -100%)";
+      }
+
+      function hideDemoTip() {
+        demoTip.hidden = true;
+        demoTip.classList.remove("visible");
+      }
+
+      function bindTooltips() {
+        document.querySelectorAll("[data-tip]").forEach((btn) => {
+          btn.addEventListener("mouseenter", () => showDemoTip(btn));
+          btn.addEventListener("mouseleave", hideDemoTip);
+          btn.addEventListener("focus", () => showDemoTip(btn));
+          btn.addEventListener("blur", hideDemoTip);
+        });
       }
 
       function toggleDemoFullscreen() {
@@ -693,25 +798,27 @@
 
       function renderHistory() {
         historyList.innerHTML = "";
-        sampleEntries.forEach((entry, index) => {
+        entries.forEach((entry) => {
           const row = document.createElement("button");
           row.type = "button";
-          row.className = "history-row" + (index === 0 ? " active" : "");
+          row.className = "history-row" + (entry.id === selectedEntryId ? " active" : "");
+          row.dataset.entryId = entry.id;
           row.innerHTML =
             '<div class="history-date">' +
             entry.date +
             '</div><div class="history-preview">' +
-            entry.preview +
+            entryPreview(entry.body) +
             "</div>";
-          row.addEventListener("click", () => {
-            historyList.querySelectorAll(".history-row").forEach((el) => el.classList.remove("active"));
-            row.classList.add("active");
-            editor.value = entry.preview === "Empty entry" ? "" : entry.preview;
-            updatePlaceholder();
-            editor.focus();
-          });
+          row.addEventListener("click", () => loadEntry(entry));
           historyList.appendChild(row);
         });
+      }
+
+      function initDemoEntries() {
+        selectedEntryId = entries[0].id;
+        editor.value = entries[0].body;
+        updatePlaceholder();
+        renderHistory();
       }
 
       fontSizeBtn.addEventListener("click", () => {
@@ -807,9 +914,13 @@
         }
       });
 
-      editor.addEventListener("input", updatePlaceholder);
+      editor.addEventListener("input", () => {
+        updateActiveHistoryPreview();
+        updatePlaceholder();
+      });
 
-      renderHistory();
+      initDemoEntries();
+      bindTooltips();
       applyTypography();
       updateTimerDisplay();
       editor.focus();
