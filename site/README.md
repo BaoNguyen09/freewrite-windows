@@ -2,9 +2,6 @@
 
 Static landing page for `freewrite.thienbao.dev`.
 
-Cloudflare Pages settings:
-
-- Build command: blank
-- Output directory: `site`
+GitHub Pages deploys this folder through `.github/workflows/pages.yml`.
 
 The download button points to the latest GitHub Release.

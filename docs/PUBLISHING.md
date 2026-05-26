@@ -18,6 +18,23 @@ git push -u origin main
    - `LICENSE`
    - `NOTICE.md`
    - `.github/workflows/release.yml`
+   - `.github/workflows/pages.yml`
+
+## GitHub Pages
+
+The site deploys from `site/` through GitHub Actions.
+
+Default URL:
+
+```text
+https://baonguyen09.github.io/freewrite-windows/
+```
+
+To deploy manually:
+
+1. Open GitHub Actions.
+2. Run the `Pages` workflow.
+3. Check **Settings -> Pages** for the live URL.
 
 ## Local Release Package
 
