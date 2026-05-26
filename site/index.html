@@ -6,7 +6,7 @@
     <title>Freewrite for Windows</title>
     <meta
       name="description"
-      content="A native Windows port of Freewrite — a distraction-free writing app for dumping thoughts fast."
+      content="A native Windows port of Freewrite, a distraction-free writing app for dumping thoughts fast."
     />
     <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACHElEQVR42rVXMZLCMAyUZVLS8CA+QcPH+AVP4Qn8gYIORvIVjHOKbiWb4jzDJI4VR5Z2V6KISCMzWvtMSymbZ31u7+3cX9G7aBTrQP/4fw/rEM8Y9x/awNpEa37Yg3J/4E/vw2hT423tul3ztn7PPxGwp/AbWgzMDuSon3MWKiIiVSURGYJpFH6fxj52Fr0IucuyrI6oKjEzjAJKTcSuDQbsA+uhqlIpha7XK10ul5Bm0ce9rU/h+lxEGuKyqtKyLHQ6neh2u9H9fqdaK/mIofssGl5PGAmKHfv9ng6Hwx9gZqBEEY0ixRYgfWP7ooiQiKR5tu+jU6Lo9Cv7U3VOz4YwkusRGNcUIM5ntPSbpToPMOHteYbP0XoExui0CB88kt6Zk3d7VC9QWqyzjPgdqda3ZTtKk13jkfGsokUAzArSCkK/wTcsiJz21I7SxxFKR+j2CM/KcBSl1tqWht+kIYsQEhy090aKLfBGNR81FiO0IwHb9AOeSt/QcLb5QJHl6PR9XmulWitlRSvqF31t8akppdAuola/Pp9PejwesOQip1DeETD7/Q6FqbVGzJ/snM9nOh6PmyjMdj9ZTVgj3xuSCM39w6qailD0gaxWlFJ+dSDK3/v9ptfrlSrbTAcdSvcoAqOeb9QXjqg5/GeUeZ/RbMbpDQ0jGY5qf7Tu27ORsnJUJkfdbaQLXtAiZ2BD4vuAjPsz5TbKv7X5AdGlvKGQ3+O5AAAAAElFTkSuQmCC" />
     <link rel="icon" type="image/png" sizes="16x16" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAArElEQVR42pWTQQrEIBRDk4DQm/SevaLgPdwVtP5ZtWPtOPy6FPNiop/HcRgAmBneLJIAAI3i1poLcGrUi0kihHDRPRD1YjNDjBGlFDfkBqi1Yts25JwhydWLxo1lWdzuD8AZY3SeAUl+Ab1wFMyiPEqcvfXfCP0hr/MN4M3ruoGZYd/3aRc/i6y1Wg9IKWFdV4QQXBFuAJKQhNaae7geEUopbvH1D3qIpFfj/AGxkGnAEfE8GQAAAABJRU5ErkJggg==" />
@@ -22,28 +22,6 @@
         --page-fg: #f2f2f2;
         --muted: #9a9a9a;
         --line: #2a2a2a;
-        --demo-bg: #3a3a3a;
-        --demo-fg: #ececec;
-        --demo-muted: #8f8f8f;
-        --demo-toolbar: #3a3a3a;
-        --demo-active: #ffffff;
-        --demo-border: #2e2e2e;
-        --font-size: 18px;
-        --font-family: "Lato", Arial, sans-serif;
-      }
-
-      html[data-theme="light"] {
-        color-scheme: light;
-        --page-bg: #f5f5f5;
-        --page-fg: #111111;
-        --muted: #666666;
-        --line: #dddddd;
-        --demo-bg: #ffffff;
-        --demo-fg: #1a1a1a;
-        --demo-muted: #999999;
-        --demo-toolbar: #fafafa;
-        --demo-active: #111111;
-        --demo-border: #e5e5e5;
       }
 
       * {
@@ -56,7 +34,6 @@
         background: var(--page-bg);
         color: var(--page-fg);
         font-family: Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        transition: background 0.2s ease, color 0.2s ease;
       }
 
       main {
@@ -99,28 +76,52 @@
       }
 
       .link {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
         font-size: 16px;
         text-decoration: none;
       }
 
-      .link::after {
-        content: "→";
+      .link.primary::after {
+        content: " \2192";
       }
 
       .link.secondary {
         color: var(--muted);
       }
 
+      .demo-wrap {
+        position: relative;
+      }
+
       .demo {
+        --demo-bg: #232323;
+        --demo-fg: #e6e6e6;
+        --demo-soft: #8c8c8c;
+        --demo-placeholder: #646464;
+        --demo-border: #343434;
+        --demo-sidebar-bg: #232323;
+        --demo-sidebar-line: #303030;
+        --demo-row-hover: #2c2c2c;
+        --demo-row-active: #333333;
+
         border: 1px solid var(--demo-border);
         border-radius: 10px;
         overflow: hidden;
         background: var(--demo-bg);
         box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
-        transition: background 0.2s ease, border-color 0.2s ease;
+        color: var(--demo-fg);
+        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+
+      .demo.light {
+        --demo-bg: #ffffff;
+        --demo-fg: #333333;
+        --demo-soft: #888888;
+        --demo-placeholder: #bbbbbb;
+        --demo-border: #e6e6e6;
+        --demo-sidebar-bg: #ffffff;
+        --demo-sidebar-line: #eeeeee;
+        --demo-row-hover: #f5f5f5;
+        --demo-row-active: #ececec;
       }
 
       .demo-body {
@@ -133,7 +134,7 @@
         inset: 0;
         display: grid;
         place-items: center;
-        color: var(--demo-muted);
+        color: var(--demo-placeholder);
         font-size: clamp(20px, 3vw, 28px);
         pointer-events: none;
         user-select: none;
@@ -152,39 +153,43 @@
         resize: none;
         background: transparent;
         color: var(--demo-fg);
-        font-size: var(--font-size, 18px);
+        font-size: 18px;
         line-height: 1.5;
-        font-family: var(--font-family, "Lato", Arial, sans-serif);
+        font-family: "Lato", Arial, sans-serif;
         outline: none;
         caret-color: var(--demo-fg);
       }
 
       .demo-toolbar {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
         align-items: center;
-        gap: 6px 0;
-        padding: 10px clamp(12px, 3vw, 20px);
+        padding: 10px 12px 10px 16px;
         border-top: 1px solid var(--demo-border);
-        background: var(--demo-toolbar);
-        color: var(--demo-muted);
+        background: var(--demo-bg);
+        color: var(--demo-soft);
         font-size: 13px;
         line-height: 1.4;
+        overflow-x: auto;
       }
 
-      .demo-toolbar .group {
+      .demo-toolbar .scroll {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         align-items: center;
+        gap: 0;
+        min-width: 0;
       }
 
-      .demo-toolbar .group.right {
-        margin-left: auto;
+      .demo-toolbar .scroll.right {
+        justify-content: flex-end;
+        padding-right: 6px;
       }
 
       .sep {
         margin: 0 6px;
-        opacity: 0.55;
+        color: #999999;
         user-select: none;
       }
 
@@ -192,24 +197,125 @@
         border: 0;
         padding: 0;
         background: none;
-        color: inherit;
+        color: var(--demo-soft);
         font: inherit;
+        white-space: nowrap;
         cursor: pointer;
-        transition: color 0.15s ease;
+        flex-shrink: 0;
       }
 
-      .tool:hover {
+      .tool:hover:not(.placeholder) {
         color: var(--demo-fg);
       }
 
       .tool.active {
-        color: var(--demo-active);
+        color: var(--demo-fg);
         font-weight: 700;
       }
 
-      .tool.static {
+      .tool.running {
+        color: #e84b4b;
+      }
+
+      .tool.placeholder {
         cursor: default;
-        pointer-events: none;
+        opacity: 0.85;
+      }
+
+      .history-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        vertical-align: middle;
+      }
+
+      .history-icon svg {
+        width: 13px;
+        height: 13px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.4;
+        stroke-linecap: round;
+      }
+
+      .demo-sidebar {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(248px, 78vw);
+        background: var(--demo-sidebar-bg);
+        border-left: 1px solid var(--demo-sidebar-line);
+        box-shadow: -8px 0 24px rgba(0, 0, 0, 0.2);
+        z-index: 5;
+        display: none;
+        flex-direction: column;
+      }
+
+      .demo-sidebar.open {
+        display: flex;
+      }
+
+      .sidebar-head {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 10px 8px 14px;
+        border-bottom: 1px solid var(--demo-sidebar-line);
+      }
+
+      .sidebar-head h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--demo-fg);
+      }
+
+      .sidebar-close {
+        border: 0;
+        background: none;
+        color: var(--demo-soft);
+        font-size: 14px;
+        padding: 4px;
+        cursor: pointer;
+      }
+
+      .sidebar-list {
+        overflow-y: auto;
+        padding: 6px 0 12px;
+      }
+
+      .history-row {
+        margin: 2px 6px;
+        padding: 8px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .history-row:hover {
+        background: var(--demo-row-hover);
+      }
+
+      .history-row.active {
+        background: var(--demo-row-active);
+      }
+
+      .history-date {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--demo-fg);
+      }
+
+      .history-preview {
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--demo-soft);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .notes {
@@ -242,18 +348,18 @@
         border: 1px solid var(--line);
       }
 
-      @media (max-width: 720px) {
+      @media (max-width: 760px) {
         main {
           padding-top: 36px;
         }
 
-        .demo-toolbar .hide-mobile {
-          display: none;
+        .demo-toolbar {
+          grid-template-columns: 1fr;
         }
 
-        .demo-toolbar .group.right {
-          margin-left: 0;
-          width: 100%;
+        .demo-toolbar .scroll.right {
+          justify-content: flex-start;
+          padding-right: 0;
         }
       }
     </style>
@@ -268,50 +374,65 @@
           One quiet place to write without distraction.
         </p>
         <div class="actions">
-          <a class="link" href="https://github.com/BaoNguyen09/freewrite-windows/releases/latest">Download beta</a>
+          <a class="link primary" href="https://github.com/BaoNguyen09/freewrite-windows/releases/latest">Download beta</a>
           <a class="link secondary" href="https://github.com/BaoNguyen09/freewrite-windows">Source</a>
         </div>
       </section>
 
-      <section class="demo" aria-label="Try the editor">
-        <div class="demo-body">
-          <div class="demo-placeholder" id="placeholder">Start typing</div>
-          <textarea
-            class="demo-input"
-            id="editor"
-            spellcheck="false"
-            aria-label="Demo writing surface"
-          ></textarea>
-        </div>
-        <div class="demo-toolbar" aria-label="Editor controls">
-          <div class="group">
-            <button type="button" class="tool" data-size="16">16px</button>
-            <span class="sep">•</span>
-            <button type="button" class="tool active" data-size="18">18px</button>
-            <span class="sep">•</span>
-            <button type="button" class="tool" data-size="20">20px</button>
-            <span class="sep">•</span>
-            <button type="button" class="tool" data-size="22">22px</button>
-            <span class="sep hide-mobile">•</span>
-            <button type="button" class="tool active" data-font="Lato">Lato</button>
-            <span class="sep">•</span>
-            <button type="button" class="tool" data-font="Arial">Arial</button>
-            <span class="sep">•</span>
-            <button type="button" class="tool" data-font="System">System</button>
-            <span class="sep hide-mobile">•</span>
-            <button type="button" class="tool" data-font="Serif">Serif</button>
-            <span class="sep hide-mobile">•</span>
-            <button type="button" class="tool" data-font="Random">Random</button>
+      <div class="demo-wrap">
+        <section class="demo" id="demo" aria-label="Try the editor">
+          <div class="demo-body">
+            <div class="demo-placeholder" id="placeholder">Start typing</div>
+            <textarea class="demo-input" id="editor" spellcheck="false" aria-label="Demo writing surface"></textarea>
           </div>
-          <div class="group right">
-            <span class="tool static hide-mobile">15:00</span>
-            <span class="sep hide-mobile">•</span>
-            <span class="tool static hide-mobile">Backspace is On</span>
-            <span class="sep">•</span>
-            <button type="button" class="tool" id="theme-toggle">Light Mode</button>
+          <div class="demo-toolbar" aria-label="Editor controls">
+            <div class="scroll">
+              <button type="button" class="tool" id="font-size-btn">18px</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool active" data-font="Lato">Lato</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool" data-font="Arial">Arial</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool" data-font="System">System</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool" data-font="Serif">Serif</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool" id="random-font-btn" data-font="Random">Random</button>
+            </div>
+            <div class="scroll right">
+              <button type="button" class="tool" id="timer-btn">15:00</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool placeholder">Talk</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool placeholder">Chat</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool" id="backspace-btn">Backspace is On</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool placeholder">Fullscreen</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool placeholder">New Entry</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool" id="theme-btn">Light Mode</button>
+              <span class="sep">&bull;</span>
+              <button type="button" class="tool history-icon" id="history-btn" aria-label="History" title="History">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6.5" />
+                  <path d="M8 4.5 L8 8 L10.8 9.8" />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <aside class="demo-sidebar" id="history-panel" aria-label="Entry history">
+          <div class="sidebar-head">
+            <h2>Entries</h2>
+            <button type="button" class="tool placeholder" style="font-size: 12px">Folder</button>
+            <button type="button" class="sidebar-close" id="history-close" aria-label="Close history">x</button>
+          </div>
+          <div class="sidebar-list" id="history-list"></div>
+        </aside>
+      </div>
 
       <noscript>
         <img
@@ -325,77 +446,224 @@
 
       <section class="notes">
         <p>Entries save locally as Markdown. You pick the folder.</p>
-        <p>Built with WPF and .NET — not Electron.</p>
+        <p>Built with WPF and .NET, not Electron.</p>
         <p>Unofficial port. MIT licensed.</p>
       </section>
 
       <footer>
-        Beta build is unsigned. Windows SmartScreen may warn before launch — choose More info, then Run anyway.
+        Beta build is unsigned. Windows SmartScreen may warn before launch. Choose More info, then Run anyway.
       </footer>
     </main>
 
     <script>
-      const root = document.documentElement;
+      const demo = document.getElementById("demo");
       const editor = document.getElementById("editor");
       const placeholder = document.getElementById("placeholder");
-      const themeToggle = document.getElementById("theme-toggle");
-      const sizeButtons = document.querySelectorAll("[data-size]");
+      const fontSizeBtn = document.getElementById("font-size-btn");
+      const randomFontBtn = document.getElementById("random-font-btn");
       const fontButtons = document.querySelectorAll("[data-font]");
+      const timerBtn = document.getElementById("timer-btn");
+      const backspaceBtn = document.getElementById("backspace-btn");
+      const themeBtn = document.getElementById("theme-btn");
+      const historyBtn = document.getElementById("history-btn");
+      const historyPanel = document.getElementById("history-panel");
+      const historyClose = document.getElementById("history-close");
+      const historyList = document.getElementById("history-list");
 
+      const fontSizes = [16, 18, 20, 22, 24, 26];
       const fontMap = {
         Lato: '"Lato", Arial, sans-serif',
-        Arial: 'Arial, Helvetica, sans-serif',
+        Arial: "Arial, Helvetica, sans-serif",
         System: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-        Serif: 'Georgia, "Times New Roman", serif',
+        Serif: '"Times New Roman", Georgia, serif',
       };
+      const randomPool = ["Courier New", "Georgia", "Verdana", "Trebuchet MS", "Palatino Linotype"];
 
-      const randomFonts = Object.keys(fontMap);
+      let fontSizeIndex = 1;
+      let selectedFont = "Lato";
+      let randomFontName = "";
+      let backspaceOn = true;
+      let isDarkDemo = true;
+      let timeRemaining = 900;
+      let timerRunning = false;
+      let timerInterval = null;
+      let timerClickTimeout = null;
 
-      function setActive(buttons, activeButton) {
-        buttons.forEach((btn) => btn.classList.toggle("active", btn === activeButton));
+      const sampleEntries = [
+        { date: "May 25, 2026", preview: "What would change if I stopped optimizing for approval?" },
+        { date: "May 23, 2026", preview: "Three things I keep avoiding about the launch..." },
+        { date: "May 20, 2026", preview: "Morning freewrite. Still thinking about the conversation." },
+        { date: "May 18, 2026", preview: "Empty entry" },
+        { date: "May 14, 2026", preview: "Notes for the Windows port demo and landing page." },
+      ];
+
+      function applyTypography() {
+        editor.style.fontSize = fontSizes[fontSizeIndex] + "px";
+        fontSizeBtn.textContent = fontSizes[fontSizeIndex] + "px";
+        editor.style.fontFamily = fontMap[selectedFont] || '"' + selectedFont + '", sans-serif';
+        fontButtons.forEach((btn) => {
+          if (btn.dataset.font === "Random") {
+            btn.classList.toggle("active", randomFontName !== "" && selectedFont === randomFontName);
+            return;
+          }
+          btn.classList.toggle("active", btn.dataset.font === selectedFont && randomFontName === "");
+        });
       }
 
       function updatePlaceholder() {
         placeholder.classList.toggle("hidden", editor.value.trim().length > 0);
       }
 
-      sizeButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          root.style.setProperty("--font-size", `${btn.dataset.size}px`);
-          setActive(sizeButtons, btn);
-          editor.focus();
+      function formatTimer() {
+        const m = Math.floor(timeRemaining / 60);
+        const s = timeRemaining % 60;
+        return m + ":" + String(s).padStart(2, "0");
+      }
+
+      function updateTimerDisplay() {
+        timerBtn.textContent = formatTimer();
+        timerBtn.classList.toggle("running", timerRunning);
+      }
+
+      function stopTimer() {
+        timerRunning = false;
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        updateTimerDisplay();
+      }
+
+      function startTimer() {
+        timerRunning = true;
+        updateTimerDisplay();
+        timerInterval = setInterval(() => {
+          if (timeRemaining > 0) {
+            timeRemaining -= 1;
+            updateTimerDisplay();
+            return;
+          }
+          stopTimer();
+        }, 1000);
+      }
+
+      function resetTimer() {
+        stopTimer();
+        timeRemaining = 900;
+        updateTimerDisplay();
+      }
+
+      function renderHistory() {
+        historyList.innerHTML = "";
+        sampleEntries.forEach((entry, index) => {
+          const row = document.createElement("button");
+          row.type = "button";
+          row.className = "history-row" + (index === 0 ? " active" : "");
+          row.innerHTML =
+            '<div class="history-date">' +
+            entry.date +
+            '</div><div class="history-preview">' +
+            entry.preview +
+            "</div>";
+          row.addEventListener("click", () => {
+            historyList.querySelectorAll(".history-row").forEach((el) => el.classList.remove("active"));
+            row.classList.add("active");
+          });
+          historyList.appendChild(row);
         });
+      }
+
+      fontSizeBtn.addEventListener("click", () => {
+        fontSizeIndex = (fontSizeIndex + 1) % fontSizes.length;
+        applyTypography();
+        editor.focus();
       });
 
       fontButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
-          let name = btn.dataset.font;
-          if (name === "Random") {
-            const choices = randomFonts.filter((f) => f !== "Random");
-            name = choices[Math.floor(Math.random() * choices.length)];
-            fontButtons.forEach((b) => {
-              if (b.dataset.font === name) setActive(fontButtons, b);
-            });
+          if (btn.dataset.font === "Random") {
+            const pick = randomPool[Math.floor(Math.random() * randomPool.length)];
+            randomFontName = pick;
+            selectedFont = pick;
+            randomFontBtn.textContent = "Random [" + pick + "]";
           } else {
-            setActive(fontButtons, btn);
+            randomFontName = "";
+            selectedFont = btn.dataset.font;
+            randomFontBtn.textContent = "Random";
           }
-          root.style.setProperty("--font-family", fontMap[name]);
+          applyTypography();
           editor.focus();
         });
       });
 
-      themeToggle.addEventListener("click", () => {
-        const light = root.dataset.theme === "light";
-        if (light) {
-          delete root.dataset.theme;
-          themeToggle.textContent = "Light Mode";
-        } else {
-          root.dataset.theme = "light";
-          themeToggle.textContent = "Dark Mode";
+      timerBtn.addEventListener("click", () => {
+        if (timerClickTimeout) {
+          clearTimeout(timerClickTimeout);
+          timerClickTimeout = null;
+        }
+        timerClickTimeout = setTimeout(() => {
+          if (timerRunning) {
+            stopTimer();
+          } else {
+            startTimer();
+          }
+          timerClickTimeout = null;
+        }, 220);
+      });
+
+      timerBtn.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        if (timerClickTimeout) {
+          clearTimeout(timerClickTimeout);
+          timerClickTimeout = null;
+        }
+        resetTimer();
+      });
+
+      timerBtn.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          let minutes = Math.max(5, Math.floor(timeRemaining / 60));
+          minutes += e.deltaY < 0 ? 5 : -5;
+          minutes = Math.min(180, Math.max(5, minutes));
+          timeRemaining = minutes * 60;
+          updateTimerDisplay();
+        },
+        { passive: false }
+      );
+
+      backspaceBtn.addEventListener("click", () => {
+        backspaceOn = !backspaceOn;
+        backspaceBtn.textContent = backspaceOn ? "Backspace is On" : "Backspace is Off";
+        editor.focus();
+      });
+
+      themeBtn.addEventListener("click", () => {
+        isDarkDemo = !isDarkDemo;
+        demo.classList.toggle("light", !isDarkDemo);
+        themeBtn.textContent = isDarkDemo ? "Light Mode" : "Dark Mode";
+      });
+
+      historyBtn.addEventListener("click", () => {
+        historyPanel.classList.add("open");
+      });
+
+      historyClose.addEventListener("click", () => {
+        historyPanel.classList.remove("open");
+      });
+
+      editor.addEventListener("keydown", (e) => {
+        if (!backspaceOn && (e.key === "Backspace" || e.key === "Delete")) {
+          e.preventDefault();
         }
       });
 
       editor.addEventListener("input", updatePlaceholder);
+
+      renderHistory();
+      applyTypography();
+      updateTimerDisplay();
       editor.focus();
     </script>
   </body>
