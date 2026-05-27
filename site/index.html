@@ -6,7 +6,7 @@
     <title>Freewrite for Windows</title>
     <meta
       name="description"
-      content="Unofficial native Windows port of Freewrite. Open source, not affiliated with freewrite.io. Downloads hosted on GitHub Releases."
+      content="Freewrite for Windows: distraction-free writing with Markdown entries. Native WPF desktop app. Try the editor online, download the beta on GitHub."
     />
     <link rel="canonical" href="https://freewrite.thienbao.dev/" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -46,8 +46,8 @@
 
       .intro {
         display: grid;
-        gap: 16px;
-        margin-bottom: 36px;
+        gap: 14px;
+        margin-bottom: 28px;
       }
 
       h1 {
@@ -60,45 +60,73 @@
 
       .tagline {
         margin: 0;
-        font-size: 18px;
+        font-size: clamp(17px, 2.5vw, 20px);
         line-height: 1.5;
-        color: var(--muted);
-        max-width: 560px;
-      }
-
-      .disclaimer {
-        margin: 0;
-        font-size: 14px;
-        line-height: 1.5;
-        color: var(--muted);
-        max-width: 560px;
-      }
-
-      .disclaimer a {
         color: var(--page-fg);
+        max-width: 640px;
+      }
+
+      .tagline strong {
+        font-weight: 600;
+      }
+
+      .tagline a {
+        color: var(--page-fg);
+        text-decoration: underline;
+        text-underline-offset: 2px;
       }
 
       .actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 18px;
-        margin-top: 4px;
+        align-items: flex-start;
+        gap: 20px;
+        margin-top: 6px;
       }
 
-      a {
-        color: inherit;
-      }
-
-      .link {
-        font-size: 16px;
+      .icon-action {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
         text-decoration: none;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.2;
+        transition: color 0.15s ease;
       }
 
-      .link.primary::after {
-        content: " \2192";
+      .icon-action:hover,
+      .icon-action:focus-visible {
+        color: var(--page-fg);
       }
 
-      .link.secondary {
+      .icon-action:focus-visible {
+        outline: 2px solid var(--page-fg);
+        outline-offset: 4px;
+        border-radius: 6px;
+      }
+
+      .icon-action img {
+        width: 28px;
+        height: 28px;
+        display: block;
+        filter: invert(1);
+        opacity: 0.88;
+        transition: opacity 0.15s ease;
+      }
+
+      .icon-action:hover img,
+      .icon-action:focus-visible img {
+        opacity: 1;
+      }
+
+      .demo-heading {
+        margin: 0 0 12px;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
         color: var(--muted);
       }
 
@@ -397,24 +425,55 @@
 
       .notes {
         display: grid;
-        gap: 8px;
-        margin: 32px 0 0;
+        gap: 12px;
+        margin: 36px 0 0;
         color: var(--muted);
         font-size: 15px;
         line-height: 1.55;
       }
 
-      .notes p {
+      .notes-heading {
         margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--page-fg);
+        letter-spacing: -0.01em;
+      }
+
+      .notes-list {
+        margin: 0;
+        padding-left: 1.2em;
+        display: grid;
+        gap: 8px;
+      }
+
+      .notes-list li {
+        padding-left: 4px;
       }
 
       footer {
         margin-top: 40px;
-        padding-top: 16px;
+        padding-top: 20px;
         border-top: 1px solid var(--line);
+        display: grid;
+        gap: 12px;
         color: var(--muted);
         font-size: 13px;
-        line-height: 1.5;
+        line-height: 1.55;
+      }
+
+      footer p {
+        margin: 0;
+      }
+
+      .disclaimer a {
+        color: var(--page-fg);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      a {
+        color: inherit;
       }
 
       .demo:fullscreen {
@@ -467,32 +526,38 @@
       <section class="intro">
         <h1>Freewrite for Windows</h1>
         <p class="tagline">
+          <strong>Distraction-free writing for Windows.</strong>
           A native port of
-          <a href="https://freewrite.io/" rel="noopener noreferrer">Freewrite</a>.
-          One quiet place to write without distraction.
-        </p>
-        <p class="disclaimer">
-          Unofficial community project. Not affiliated with
-          <a href="https://freewrite.io/" rel="noopener noreferrer">freewrite.io</a>
-          or Astrohaus. Downloads are hosted on GitHub Releases only.
+          <a href="https://freewrite.io/" rel="noopener noreferrer">Freewrite</a>
+          with local Markdown entries, a quiet full-screen editor, and no Electron bloat.
+          Try it in the demo below.
         </p>
         <div class="actions">
           <a
-            class="link primary"
+            class="icon-action"
             href="https://github.com/BaoNguyen09/freewrite-windows/releases/latest"
             rel="noopener noreferrer"
-            >Download beta</a
+            title="Download beta from GitHub Releases"
+            aria-label="Download beta from GitHub Releases"
           >
+            <img src="img/github-mark.png" width="28" height="28" alt="" />
+            <span>Download beta</span>
+          </a>
           <a
-            class="link secondary"
+            class="icon-action"
             href="https://github.com/BaoNguyen09/freewrite-windows"
             rel="noopener noreferrer"
-            >Source</a
+            title="View source on GitHub"
+            aria-label="View source code on GitHub"
           >
+            <img src="img/github-mark.png" width="28" height="28" alt="" />
+            <span>Source code</span>
+          </a>
         </div>
       </section>
 
       <div class="demo-wrap">
+        <h2 class="demo-heading">Try the editor</h2>
         <section class="demo" id="demo" aria-label="Try the editor">
           <div class="demo-shell">
             <div class="demo-body">
@@ -579,14 +644,24 @@
         />
       </noscript>
 
-      <section class="notes">
-        <p>Entries save locally as Markdown. You pick the folder.</p>
-        <p>Built with WPF and .NET, not Electron.</p>
-        <p>Unofficial port. MIT licensed.</p>
+      <section class="notes" aria-labelledby="notes-heading">
+        <h2 class="notes-heading" id="notes-heading">Built for focused writing</h2>
+        <ul class="notes-list">
+          <li>Entries save locally as Markdown. You choose the folder.</li>
+          <li>Native WPF and .NET desktop app, not a browser wrapper.</li>
+          <li>Timer, fonts, history, and light or dark mode in one quiet window.</li>
+        </ul>
       </section>
 
       <footer>
-        Beta build is unsigned. Windows SmartScreen may warn before launch. Choose More info, then Run anyway.
+        <p class="disclaimer">
+          Unofficial community project. Not affiliated with
+          <a href="https://freewrite.io/" rel="noopener noreferrer">freewrite.io</a>
+          or Astrohaus. Downloads are hosted on GitHub Releases only.
+        </p>
+        <p>
+          Beta build is unsigned. Windows SmartScreen may warn before launch. Choose More info, then Run anyway.
+        </p>
       </footer>
     </main>
     <div id="demo-tip" role="tooltip" hidden></div>
@@ -826,18 +901,22 @@
       }
 
       function renderHistory() {
-        historyList.innerHTML = "";
+        historyList.replaceChildren();
         entries.forEach((entry) => {
           const row = document.createElement("button");
           row.type = "button";
           row.className = "history-row" + (entry.id === selectedEntryId ? " active" : "");
           row.dataset.entryId = entry.id;
-          row.innerHTML =
-            '<div class="history-date">' +
-            entry.date +
-            '</div><div class="history-preview">' +
-            entryPreview(entry.body) +
-            "</div>";
+
+          const dateEl = document.createElement("div");
+          dateEl.className = "history-date";
+          dateEl.textContent = entry.date;
+
+          const previewEl = document.createElement("div");
+          previewEl.className = "history-preview";
+          previewEl.textContent = entryPreview(entry.body);
+
+          row.append(dateEl, previewEl);
           row.addEventListener("click", () => loadEntry(entry));
           historyList.appendChild(row);
         });
